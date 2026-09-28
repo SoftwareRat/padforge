@@ -190,6 +190,11 @@ tracker; this file mirrors progress so work can resume after interruption.
   files), primary IPA audit passed, 7.2 MB IPA, gate FAIL as intended. Repo
   checks pass; tree passes the gate. #39 merged (`8617c3d`), manifest
   experimental → **L4 on main** (was L1 blocked). SunPad (#49) build started.
+- 05:34 **SunPad complete personal build through PadForge** (#49 at
+  `eb6a17b`): exit 0, bundled minizip-ng, module provisioned, SunPad's own iOS
+  package audit passed, 26.8 MB IPA, gate FAIL as intended; check-repository
+  passes → **L4 on branch** (script fixes, so #49 is the owner's to merge).
+  DinoPad (#7) build started.
 
 ## Level snapshot (01:00)
 
