@@ -210,6 +210,11 @@ tracker; this file mirrors progress so work can resume after interruption.
   generation has none. Fixed on #7 (`b8f864a`: skip when nothing to undo,
   still refuse renamed code without the map); base preparation verified.
   Re-queued after SnapPad (running).
+- 06:10 **SnapPad complete personal build through PadForge** (#7 at
+  `779583e`): 7m42s, exit 0, Xcode 27 configure passes with the RT64 patch,
+  7.7 MB IPA, gate FAIL as intended. Formal level stays L0 (source-gate test
+  stub policy). Finding: SnapPad's packager prints "Public unsigned SnapPad IPA
+  audit passed" for this personal IPA — misleading label. DinoPad started.
 
 ## Level snapshot (01:00)
 
