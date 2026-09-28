@@ -107,6 +107,12 @@ tracker; this file mirrors progress so work can resume after interruption.
   macOS 10.13, Xcode 27 needs 12.0+ (draft #6). All re-queued.
 - Queue chain: DevilTouch (#6) → KartPad Mac target (#336) → AnnePad (#7) →
   SunPad (#49) → BarrelPad (#15), SnapPad (#7), DinoPad (#7) → VaultPad (#6).
+- 03:10 DevilTouch complete build on #6 (6m06s) → L4 on branch (gate PASS).
+- 03:15 KartPad Mac target stopped on a missing macOS Dawn archive that
+  bootstrap never fetched; fixed on #336 (`217aa57`, hash from the lock).
+  AnnePad fix commit had landed on a detached HEAD; recovered and pushed
+  (`26ccdd2`). AnnePad patches fetched deps in place (rebuild blocker; noted).
+  Re-queued after VaultPad: AnnePad, KartPad Mac.
 
 ## Level snapshot (01:00)
 
