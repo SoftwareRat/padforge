@@ -1,0 +1,71 @@
+# Backend integration, 28 September 2026
+
+PadForge owns a small CLI, subprocess execution, checkout locking, local attempt
+records and progress display. BlueWake and KartPad retain their existing build
+implementations. No backend source has been copied, and no license has been
+inferred for upstream code. There is no plugin loading or arbitrary command option.
+
+## Current interface
+
+Only an explicitly selected local checkout at a full reviewed commit can run.
+Tracked modifications and untracked files cause rejection. This verifies the
+selected revision; it does not establish that its code or dependencies are safe.
+The caller must trust that checkout and the tools it executes. Ignored dependency
+trees are still the backend's responsibility. PadForge never fetches a backend.
+
+An attempt gets a private output directory under the backend's ignored
+`build/padforge/`. Configuration includes the complete disc hash, backend commit,
+PadForge version and selected options. Repeat the same command to reuse the
+backend work directory; a new attempt log and output path prevent stale output
+from being mistaken for a new successful build. The backend validates its cache.
+PadForge does not certify those validations or skip stages itself.
+
+The checkout-wide advisory lock coordinates PadForge processes, including
+shared dependency caches. It cannot stop builds started directly or by another
+tool. Do not run those concurrently in the same checkout. Use a separate clean
+checkout when another agent is editing or building there.
+
+Backend events are nested under `backend_event` without pretending all stages
+implement the proposed contract. Wrapper events describe the whole attempt;
+their elapsed time is separate from backend stage time. Logs/events are local
+and may contain personal paths; no diagnostic export is implemented. The small
+record contains identifiers and hashes, not full backend/toolchain provenance.
+Cancellation sends TERM to the process group, allowing 20 seconds for cleanup.
+BlueWake's nested stage/training sessions must forward cancellation correctly;
+arbitrary detached descendants cannot be guaranteed terminated by this wrapper.
+
+## Concrete gaps
+
+| Backend | What can be connected now | Remaining validation or implementation |
+| --- | --- | --- |
+| BlueWake | `scripts/builder/build.sh`, `--out`, `--ipa`, `--jobs`, `--source-only`, `--no-mods`, local `--train-pgo`; stage events in `logs/progress.jsonl` | Stage IDs are subprocess/log names, not the full proposed stage graph. No complete result contract. Local PGO route, profile provenance, cache validation and matched hardware performance remain open. Existing suppression flags for profile mismatches need review by BlueWake owner. |
+| KartPad | `scripts/build-user-ipa.sh build IMAGE --work-root DIR --output IPA --jobs N`; exact image profile selection; backend cache and IPA provenance | Jobs accepts 1–8. No structured stage events, source-only switch, mod-selection switch or platform selector. `build` verifies dependencies but does not bootstrap them; run backend bootstrap separately. Runtime/dependency work also uses repository-local build paths. Existing audit/provenance does not establish end-to-end release readiness. |
+
+KartPad's primary checkout has extensive concurrent edits, including its Python
+pipeline. The interface review used that working tree and compared the handoff
+reference (`e1908b0f...`); it is not approval of a new backend revision. BlueWake
+was at `0f07521fb591dddbabe8c6e612f2be8da3a565b0` with active edits to its builder.
+Neither dirty primary checkout was executed or modified for this work.
+
+BlueWake's owner subsequently reported focused SIGINT/SIGTERM tests proving
+child cleanup and cancellation events, and a real CMake/Ninja test proving
+profile changes trigger rebuilds under paths with spaces. Those are backend
+owner results, not an end-to-end PadForge build. The owner also reports the iPad
+is unavailable: current work is Mac-only and synthetic tests must not launch a
+concurrent BlueWake build. Hardware acceptance remains deferred.
+
+## Acceptance still open
+
+1. BlueWake owner finishes local training and hardware acceptance, stabilizes a
+   clean revision and reviews nested-process cancellation and cache reuse.
+2. Exercise that revision through PadForge with an unsupported disc, interrupted
+   translation/compile, then a complete fresh local build; verify IPA contents,
+   embedded provenance, mod invalidation and local profile generation.
+3. Add stage/result events to KartPad in a separate scoped change after its
+   concurrent work settles; preserve its validation and cache logic.
+4. Add and test Mac and Android target adapters. Windows support is not implemented.
+   KartPad's requested four-platform relaunch remains blocked on those paths.
+
+Synthetic runner tests establish orchestration behavior only. They do not prove
+gameplay, performance, backend correctness or copyright clearance. Public
+publication remains paused; personal IPAs and optimization profiles stay local.
