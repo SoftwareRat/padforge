@@ -168,6 +168,13 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 04:40 Queue runners launched from a tool shell die when the call ends; the
   surviving ones run in their own session. Relaunched that way. Order:
   SunPad (running) → AnnePad → KartPad Mac → GoldenPad (#39) → DinoPad → SnapPad.
+- 04:43 SunPad on #49: past the macOS 27 SDK failure, translated and linked the
+  game module (29.5 min), then provisioning failed: pkg-config handed the iOS
+  core Homebrew's macOS minizip-ng, so the bundled archive was never built.
+  Host leak fixed with `-DUSE_SYSTEM_MINIZIP-NG=OFF` (`eb6a17b`; fresh configure
+  confirms bundled). Old iOS core folder renamed aside. Re-queued after GoldenPad.
+  PadForge lesson: builds should not depend on what Homebrew has installed;
+  worth a doctor warning later.
 
 ## Level snapshot (01:00)
 
