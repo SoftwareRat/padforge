@@ -335,8 +335,9 @@ def version_tuple(text):
     return tuple(int(part) for part in match.group().split(".")) if match else None
 
 
-def doctor(game, target_name, repo=None, stream=sys.stdout):
+def doctor(game, target_name, repo=None, stream=None):
     """Check this computer against a game's declared requirements; install nothing."""
+    stream = stream or sys.stdout
     manifest, source = manifest_for(game, repo)
     problems = 0
 
@@ -393,7 +394,8 @@ def doctor(game, target_name, repo=None, stream=sys.stdout):
     return 1 if problems else 0
 
 
-def list_games(stream=sys.stdout):
+def list_games(stream=None):
+    stream = stream or sys.stdout
     for game, entry in sorted(catalog().items()):
         manifest = entry.get("manifest")
         if manifest is None:
@@ -411,6 +413,9 @@ def build_parser():
     parser.add_argument("--version", action="version", version=f"PadForge {__version__}")
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("list", help="Show supported games and platforms")
+    ui_parser = commands.add_parser("ui", help="Open the local browser interface")
+    ui_parser.add_argument("--port", type=int, default=0)
+    ui_parser.add_argument("--no-open", action="store_true", help="Print the address without opening a browser")
     doctor_parser = commands.add_parser("doctor", help="Check this computer for a game's requirements")
     doctor_parser.add_argument("game")
     doctor_parser.add_argument("--target", default="ios")
@@ -442,6 +447,9 @@ def main(argv=None):
     try:
         if args.action == "list":
             return list_games()
+        if args.action == "ui":
+            from .ui import serve
+            return serve(args.port, not args.no_open)
         if args.action == "doctor":
             repo = args.repo.expanduser().resolve() if args.repo else None
             return doctor(args.game, args.target, repo)

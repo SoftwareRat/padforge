@@ -240,7 +240,8 @@ def check(path, needles=None):
     return findings, translated
 
 
-def audit(paths, reference=None, stream=sys.stdout):
+def audit(paths, reference=None, stream=None):
+    stream = stream or sys.stdout
     needles = load_reference(reference) if reference else {}
     failed = False
     for path in paths:

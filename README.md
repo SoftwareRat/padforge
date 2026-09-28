@@ -15,6 +15,7 @@ Python 3.9 or newer; no packages needed. From this repository:
 
 ```sh
 python3 -m padforge list                      # supported games and platforms
+python3 -m padforge ui                        # local browser page (same commands)
 python3 -m padforge doctor kartpad            # check this computer (installs nothing)
 python3 -m padforge doctor bluewake --repo /path/to/bluewake
 python3 -m padforge audit path/to/file-or-folder   # release gate
@@ -71,4 +72,3 @@ profiles never belong in this repository.
 ```sh
 python3 -m unittest discover -s tests -v
 ```
-

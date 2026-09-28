@@ -17,6 +17,19 @@ feasibility are technical findings, not copyright or licensing clearance.
 - **Why:** one engine for all three operating systems; the interface cannot
   drift from what the CLI actually does; the expensive part (tool setup and
   multi-hour builds) is the same either way.
+- **Implemented 29 Sep:** `python3 -m padforge ui` serves the page on
+  `127.0.0.1` with a random token and a Host check, runs `doctor`/`plan` in
+  process and starts builds as `python3 -m padforge build` subprocesses (one at
+  a time, cancellable), showing stages from the same events. Checked in the
+  in-app browser against StarshipPad: current commit, doctor Ready, plan steps.
+
+## D4. Manifests may list existing scripts as ordered steps
+
+A target declares either one `command` (with optional modes/options) or
+`steps` (stage name + argument list). PadForge runs steps in order, emits the
+stage events itself, rechecks the checkout before each step and stops at the
+first failure. Most ports already have working scripts, so adding a game is a
+manifest-only change rather than a new wrapper in every repository.
 
 ## D2. Games plug in through a manifest they own
 
