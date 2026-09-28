@@ -113,6 +113,29 @@ exit 2
         self.assertEqual(seen[0][1]["backend"]["stage"], "new")
         self.assertEqual(seen[1][0], "progress_warning")
 
+    def test_exit_drains_all_complete_events(self):
+        for exit_code in (0, 7):
+            with self.subTest(exit_code=exit_code):
+                events = self.root / f"burst-{exit_code}.jsonl"
+                script = (
+                    "import json,sys; "
+                    "f=open(sys.argv[1],'w'); "
+                    "f.writelines(json.dumps(dict(schema_version=1, event='stage_progress', "
+                    "sequence=i))+'\\n' for i in range(5000)); "
+                    "f.write(json.dumps(dict(schema_version=1, event='build_completed' "
+                    "if int(sys.argv[2]) == 0 else 'build_failed'))+'\\n'); "
+                    "f.close(); sys.exit(int(sys.argv[2]))"
+                )
+                seen = []
+                result = run_process([sys.executable, "-c", script, str(events), str(exit_code)],
+                                     self.root, self.root / "burst.log", events,
+                                     lambda event, **kw: seen.append(kw["backend"]))
+                self.assertEqual(result, (exit_code, False))
+                self.assertEqual(len(seen), 5001)
+                self.assertEqual([item["sequence"] for item in seen[:-1]], list(range(5000)))
+                self.assertEqual(seen[-1]["event"],
+                                 "build_completed" if exit_code == 0 else "build_failed")
+
     def test_failed_backend_exit_preserved(self):
         result = run_process([sys.executable, "-c", "raise SystemExit(7)"], self.root,
                              self.root / "out.log", self.root / "events",
@@ -122,7 +145,20 @@ exit 2
     def test_cancel_reaches_child(self):
         marker = self.root / "cancelled"
         ready = self.root / "ready"
-        script = "import signal,time,pathlib,sys; signal.signal(signal.SIGTERM, lambda *a: (pathlib.Path(sys.argv[1]).write_text('stopped'),sys.exit(0))); pathlib.Path(sys.argv[2]).touch(); time.sleep(30)"
+        events = self.root / "events"
+        script = """
+import json, signal, time, pathlib, sys
+def stop(*args):
+    with open(sys.argv[3], 'w') as stream:
+        for i in range(5000):
+            stream.write(json.dumps(dict(schema_version=1, sequence=i)) + '\\n')
+        stream.write(json.dumps(dict(schema_version=1, event='build_cancelled')) + '\\n')
+    pathlib.Path(sys.argv[1]).write_text('stopped')
+    sys.exit(0)
+signal.signal(signal.SIGTERM, stop)
+pathlib.Path(sys.argv[2]).touch()
+time.sleep(30)
+"""
         def cancel():
             import time
             for _ in range(100):
@@ -132,12 +168,15 @@ exit 2
                 time.sleep(.02)
         thread = threading.Thread(target=cancel)
         thread.start()
-        result = run_process([sys.executable, "-c", script, str(marker), str(ready)], self.root,
-                             self.root / "out.log", self.root / "events",
-                             lambda *a, **kw: None)
+        seen = []
+        result = run_process([sys.executable, "-c", script, str(marker), str(ready), str(events)],
+                             self.root, self.root / "out.log", events,
+                             lambda event, **kw: seen.append(kw["backend"]))
         thread.join()
         self.assertEqual(result, (130, True))
         self.assertEqual(marker.read_text(), "stopped")
+        self.assertEqual(len(seen), 5001)
+        self.assertEqual(seen[-1]["event"], "build_cancelled")
 
 
 if __name__ == "__main__":

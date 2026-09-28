@@ -112,6 +112,12 @@ def run_process(argv, cwd, log_path, event_path, emit):
         if len(pending) > 1024 * 1024:
             pending = b""
             emit("progress_warning", reason="Oversized backend event skipped")
+        return bool(data)
+
+    def drain():
+        # Keep live polls bounded, but read every remaining chunk after shutdown.
+        while relay():
+            pass
 
     def interrupt(_signum, _frame):
         raise KeyboardInterrupt
@@ -129,7 +135,7 @@ def run_process(argv, cwd, log_path, event_path, emit):
                     emit("build_progress", status="running; see backend.log")
                     last_progress = time.monotonic()
                 time.sleep(0.2)
-            relay()
+            drain()
             return process.returncode, False
     except KeyboardInterrupt:
         if process is not None:
@@ -153,6 +159,7 @@ def run_process(argv, cwd, log_path, event_path, emit):
                     break
                 time.sleep(0.1)
             process.wait()
+            drain()
         return 130, True
     finally:
         signal.signal(signal.SIGTERM, previous)
