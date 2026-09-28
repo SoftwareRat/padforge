@@ -113,6 +113,13 @@ tracker; this file mirrors progress so work can resume after interruption.
   AnnePad fix commit had landed on a detached HEAD; recovered and pushed
   (`26ccdd2`). AnnePad patches fetched deps in place (rebuild blocker; noted).
   Re-queued after VaultPad: AnnePad, KartPad Mac.
+- 03:22 BarrelPad complete build on #15 (45 s) → L4 on branch.
+- 03:21 SunPad: dependencies bootstrapped (8m46s), then Dolphin desktop tools
+  failed on the macOS 27 SDK (curl pipe2 availability). Fix on #49
+  (`-DHAVE_PIPE2=OFF`); MeleePad has the same configure. Re-queued last.
+- 03:27 SnapPad: iOS configure fails on Xcode 27 (SDL2 try-compiles cannot find
+  AvailabilityMacros.h) — needs investigation. DinoPad manifest rewritten to the
+  README order; re-queued before SunPad.
 
 ## Level snapshot (01:00)
 
