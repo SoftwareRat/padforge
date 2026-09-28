@@ -218,13 +218,34 @@ PR only)  12. Clean engines  13. Supporting repos (status only)
    KartPad guard skeleton + synthetic tests + log/record markers; SnapPad test
    stub; GalaxyPad signature anchors in scripts; F0X and HarkinianPad
    (PR #28) decompiled context lines inside patches.
-3. **MaskPad iOS 15 minimum** (Xcode 27 cannot target 14): merge PR #9.
+3. **iOS 15 minimum** (Xcode 27 cannot target iOS 14): MaskPad #9,
+   HarkinianPad #30, DevilTouch #6. Each builds completely on its branch.
 4. **Runtime-only public apps:** feasible in principle (S1); BlueWake, SunPad
    and MeleePad already separate app and game module. Publishing is your call.
 5. **Make PadForge public** (public READMEs cannot point to it until then).
-6. Existing: delete the 157 drafts; retire forks; history rewrites.
+6. **Gate rule for CaesarPad, KidPad and RAtouch:** add AGENTS.md yourself (or
+   with `[skip ci]`). Their CI builds/uploads IPAs or can create a "latest"
+   release on push, so nothing was pushed overnight. Full history of all six
+   clean engines passes; EmeraldTablet and DaggerPad are ready to mark Clear.
+7. **PeonPad #8** (gate rule): tree fails closed only on compressed upstream
+   fixtures that pass when unpacked. Merge, and decide whether to unpack or
+   exclude them.
+8. **Torch-LH deleted upstream:** draft PaperBoat#1 (URL only) unblocks fresh
+   clones of BananaPad and PaperPad.
+9. Existing: delete the 157 drafts; retire forks; history rewrites.
+
+## Follow-ups for PadForge itself
+
+- Several repo scripts ignore the job cap (SunPad's module build `-j16`,
+  AnnePad's iOS ninja unlimited). Export `CMAKE_BUILD_PARALLEL_LEVEL` and
+  document `{jobs}` for manifests.
+- Host leaks: Homebrew libraries can be picked up by iOS builds (SunPad's
+  minizip-ng). `padforge doctor` could warn about known offenders.
+- Detached-HEAD pushes: queue runners detach worktrees; commit on the branch.
 
 ## Merge queue (PRs that need an owner or a bootstrapped check)
 
-KartPad #336 · MaskPad #9 · HarkinianPad #28 · SunPad #49 · MeleePad #34 ·
-AnnePad #7 · SnapPad #7 · GalaxyPad #15 · CTRPad #40 · BlueWake #2
+KartPad #336 · MaskPad #9 · HarkinianPad #30, #28 · DevilTouch #6 ·
+BarrelPad #15 · VaultPad #6 · SunPad #49 · MeleePad #34 · AnnePad #7 ·
+SnapPad #7 · DinoPad #7 · GalaxyPad #15 · CTRPad #40 · PeonPad #8 ·
+PaperBoat #1 · BlueWake #2
