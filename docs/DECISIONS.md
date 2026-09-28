@@ -53,6 +53,11 @@ manifest-only change rather than a new wrapper in every repository.
   records the result: personal builds must be labeled *personal, not
   publishable*; source archives must pass.
 - A gate failure on anything intended for publication is a stop.
+- **Limit found 29 Sep:** the gate recognizes translated code by address-named
+  symbols, keys, section markers and provenance. Decompilation ports compile
+  named functions, so their personal apps can PASS (BellPad: 0 symbols). For
+  those ports, `publication.public_binaries: false` in the manifest is the
+  safeguard; a gate PASS is never permission to publish a decompilation build.
 
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 

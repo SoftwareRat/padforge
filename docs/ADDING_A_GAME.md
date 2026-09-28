@@ -23,9 +23,9 @@ as a stage, shows progress, stops at the first failure and audits the result.
       "output": "ipa",
       "check": "ipa",
       "steps": [
-        {"stage": "preflight", "command": ["/bin/bash", "{repo}/scripts/check-repo-safety.sh"]},
-        {"stage": "compile", "command": ["/bin/bash", "{repo}/scripts/build-ios.sh", "--device"]},
-        {"stage": "package", "command": ["/bin/bash", "{repo}/scripts/package-ios.sh",
+        {"stage": "preflight", "command": ["{repo}/scripts/check-repo-safety.sh"]},
+        {"stage": "compile", "command": ["{repo}/scripts/build-ios.sh", "--device"]},
+        {"stage": "package", "command": ["{repo}/scripts/package-ios.sh",
                                          "{repo}/build-ios/Release-iphoneos/ExamplePad.app", "{output}"]}
       ]
     }
@@ -49,6 +49,11 @@ as a stage, shows progress, stops at the first failure and audits the result.
   experimental hosts run.
 - A game with its own one-command builder can use a single `command` with
   `modes` (`full`, `source-only`) and `options` instead of `steps`.
+- Run executable scripts directly so their own `#!/usr/bin/env bash` shebang
+  applies. On macOS `/bin/bash` is bash 3.2, which some scripts do not support.
+- If a step needs submodules, add a first step
+  `["git", "-C", "{repo}", "submodule", "update", "--init", "--recursive"]`: fresh
+  worktrees start with empty submodule folders.
 - Make sure the repository ignores `build/`: PadForge writes its private
   workspace to `build/padforge/`.
 
