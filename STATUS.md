@@ -57,6 +57,24 @@ tracker; this file mirrors progress so work can resume after interruption.
   Fixed on the MaskPad branch; rebuild running.
 - 00:45 HarkinianPad fork → patches: three patches against upstream Shipwright,
   libultraship and ZAPDTR reproduce the fork trees exactly; gate PASS.
+  Draft PR #28 (decompiled context lines need owner policy).
+- 00:47 MaskPad complete build through PadForge: 17m28s, exit 0, 17.7 MB personal
+  IPA, gate FAIL on the IPA as expected, source PASS (draft PR #9, L4 on branch).
+- 00:50 PadForge: `steps` manifests, per-step env, `padforge ui` (checked live).
+- 00:55 L2 merged: StarshipPad #14, BrawlerPad #7, SpaghettiPad #18,
+  DevilTouch #5, BellPad #15, BearBirdPad #14, BarrelPad #13, VaultPad #4.
+  Manifests on open PRs: AnnePad #7, SnapPad #7, SunPad #49.
+- 01:00 KartPad bootstrap verified; StarshipPad complete build running.
+
+## Level snapshot (01:00)
+
+| Level | Repos |
+|---|---|
+| L4 (branch) | MaskPad (#9 unmerged) |
+| L2 | StarshipPad, BrawlerPad, SpaghettiPad, DevilTouch, BellPad, BearBirdPad, BarrelPad, VaultPad |
+| L1 | GoldenPad, HarkinianPad, PaperPad, BallPad, BananaPad, DinoPad, UTP |
+| L0, PR open | KartPad #336, SunPad #49, MeleePad #34, AnnePad #7, CTRPad #40, GalaxyPad #15, SnapPad #7 |
+| L0, gate policy | KartPad, GalaxyPad, SnapPad, F0X |
 
 ## Repo queue
 
