@@ -108,6 +108,19 @@ host-neutral paths and a build-only host check; Windows via WSL2 for the bash
 scripts. Not built on Linux/Windows tonight (Docker daemon not running; the Mac
 was under another agent's build).
 
+Concrete plan (surveyed 29 Sep, not implemented): the Mac assumptions sit in
+about 15 `scripts/*android*.sh` files and follow four patterns. Add one sourced
+helper, `scripts/android-host.sh`, that sets per host: `JAVA_HOME`
+(`.android-bootstrap/jdk-*/Contents/Home` on macOS, `jdk-*` on Linux), the
+default SDK root (`~/Library/Android/sdk` vs `~/Android/Sdk`), the NDK prebuilt
+directory (`darwin-x86_64` vs `linux-x86_64`) and a `sha256` function
+(`shasum -a 256` vs `sha256sum`). Pin a second Temurin JDK archive and
+SHA-256 for linux-x64 in `android-toolchain-versions.sh` and select it in
+`bootstrap-android-host.sh`. Split `check-android-host.sh` into build
+requirements (SDK platform, build-tools, NDK, CMake, JDK) and device/emulator
+extras, and accept `Linux x86_64` for builds. Verify first on a Linux x86_64
+machine or container, then Windows through WSL2.
+
 ## S3. Runtime-only APK plus player module
 
 Android 10+ restricts executing code from an app's writable data directory for
