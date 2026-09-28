@@ -1,0 +1,81 @@
+# Adding a game to PadForge
+
+A game joins PadForge with two small files and no PadForge code changes.
+
+## 1. Add `padforge.json` to the game repository
+
+List the scripts the repository already uses, in order. PadForge runs each one
+as a stage, shows progress, stops at the first failure and audits the result.
+
+```json
+{
+  "schema_version": 1,
+  "id": "examplepad",
+  "name": "ExamplePad",
+  "game": "Example Game (N64)",
+  "kind": "decomp-patches",
+  "status": "draft-untested",
+  "inputs": [{"type": "n64-rom", "formats": ["z64"], "when": "in-app",
+              "description": "Your own ROM, chosen in the app."}],
+  "targets": {
+    "ios": {
+      "hosts": {"macos-arm64": "experimental"},
+      "output": "ipa",
+      "check": "ipa",
+      "steps": [
+        {"stage": "preflight", "command": ["/bin/bash", "{repo}/scripts/check-repo-safety.sh"]},
+        {"stage": "compile", "command": ["/bin/bash", "{repo}/scripts/build-ios.sh", "--device"]},
+        {"stage": "package", "command": ["/bin/bash", "{repo}/scripts/package-ios.sh",
+                                         "{repo}/build-ios/Release-iphoneos/ExamplePad.app", "{output}"]}
+      ]
+    }
+  },
+  "requirements": {"disk_gb": 10, "tools": [{"name": "xcodebuild", "version_args": ["-version"]}]},
+  "publication": {"public_binaries": false, "reason": "Personal builds contain game code."}
+}
+```
+
+- **Placeholders** fill whole arguments only: `{repo}`, `{disc}`, `{work}`,
+  `{output}`, `{jobs}`. Values never become shell text. A step may also set
+  `"env": {"NAME": "{output}"}` when a script reads its output path from the
+  environment.
+- **Inputs:** use `"when": "build"` when a script reads the player's disc or ROM
+  (then `--disc` is required and passed as `{disc}`), or `"in-app"` when the
+  player chooses it after installing (then `--disc` is refused).
+- **Kinds:** `disc-translation`, `emulator-shell`, `decomp-patches`,
+  `upstream-engine`, `clean-engine`.
+- **Hosts and states:** `verified` (a recorded complete build), `experimental`
+  (runnable, not yet accepted), `planned`, `unsupported`. Only verified and
+  experimental hosts run.
+- A game with its own one-command builder can use a single `command` with
+  `modes` (`full`, `source-only`) and `options` instead of `steps`.
+- Make sure the repository ignores `build/`: PadForge writes its private
+  workspace to `build/padforge/`.
+
+Check it:
+
+```sh
+python3 -m padforge check-manifest /path/to/examplepad
+python3 -m padforge plan examplepad --repo /path/to/examplepad --revision FULL_COMMIT
+```
+
+## 2. Add a catalog entry to PadForge
+
+`catalog/examplepad.json`:
+
+```json
+{"schema_version": 1, "id": "examplepad",
+ "repo_url": "https://github.com/chrissotraidis/examplepad",
+ "reviewed_revision": null, "notes": "Manifest owned by the game repository.",
+ "manifest": null}
+```
+
+## 3. Promote it
+
+1. Run `python3 -m padforge build` from a clean checkout. The record shows each
+   stage, the output check and the release gate result.
+2. After a complete build, set `status` to `experimental`; after a build is
+   accepted on a device, mark the host `verified` and pin `reviewed_revision`.
+3. Before anything is published, every public file must pass
+   `python3 -m padforge audit`. Personal builds are never published.
+

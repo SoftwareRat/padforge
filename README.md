@@ -47,6 +47,7 @@ their status, the backend command, stages, requirements and publication
 policy. PadForge's [catalog](catalog/) pins each supported game and carries an
 interim manifest for repositories that do not have one yet. Game-specific
 translation, patches and packaging stay in the game repository.
+See [Adding a game](docs/ADDING_A_GAME.md) for a complete example.
 
 ## What a build does and does not do
 
