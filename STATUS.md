@@ -79,6 +79,14 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 01:33 Build queue (scratch runner): BrawlerPad running; then HarkinianPad
   (#30 branch), SpaghettiPad, BearBirdPad, DevilTouch, BellPad, BarrelPad,
   VaultPad, BallPad, BananaPad, AnnePad (#7), SnapPad (#7), DinoPad (#7).
+- 01:40 BrawlerPad complete build from main (9m47s) → L4; manifest experimental.
+- 01:54 HarkinianPad complete build on #30 (13m50s) → L4 on branch; from main
+  it fails on Xcode 27, so #30 is required.
+- 02:00 GoldenPad L2 blocker: pinned GoldenEye64Recomp fork lacks `us.toml` and
+  the TLB-free patch; maintainer builds used a local upstream checkout.
+- 02:10 `padforge history --repo` added. Clean engines' public IPAs all pass
+  the gate.
+- 02:14 SpaghettiPad complete build from main (19m55s) → L4; manifest experimental.
 
 ## Level snapshot (01:00)
 
