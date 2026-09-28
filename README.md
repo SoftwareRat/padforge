@@ -30,9 +30,14 @@ Use `--target` to choose a platform the game declares (default `ios`),
 `--source-only`/`--no-mods` where the game supports them, and `--jobs 1-8`.
 
 Builds run on the platforms each game marks *verified* or *experimental*;
-`list` shows the rest as *planned*. Today that is iPhone/iPad builds on an Apple
-Silicon Mac for BlueWake and KartPad. Windows and Linux support is planned; see
-the decision record for what has been tested.
+`list` shows the rest as *planned*. Today every runnable target is an
+iPhone/iPad build on an Apple Silicon Mac. Windows and Linux support is planned;
+see the decision record for what has been tested.
+
+The catalog covers the Pad ports whose repositories declare a build. Most
+manifests are `draft-untested` until a complete build has run through PadForge;
+[STATUS.md](STATUS.md) lists which ones have. MaskPad was the first complete
+game build through PadForge (29 Sep 2026, on its pending PR branch).
 
 ## How games plug in
 
