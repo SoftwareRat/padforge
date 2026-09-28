@@ -6,6 +6,19 @@ tracker; this file mirrors progress so work can resume after interruption.
 
 **Window:** until 07:00 JST, 29 Sep 2026. Handoff starts 06:30.
 
+## Morning handoff (06:15)
+
+- **Complete personal builds through PadForge (16 games):** KartPad (iOS and
+  Mac), GoldenPad, SunPad, AnnePad, SnapPad, MaskPad, HarkinianPad, DevilTouch,
+  BarrelPad, VaultPad, StarshipPad, BrawlerPad, SpaghettiPad, BearBirdPad,
+  BellPad, BallPad. The gate rejects every output as personal. On `main`:
+  GoldenPad and the six earlier ones; the rest wait on PRs (merge queue below).
+- **Not verified:** no device install or gameplay (no L5); no non-Mac host build.
+- **Nothing published, nothing deleted.** Moved-aside folders and cleanup
+  candidates with sizes are in the Notion morning summary.
+- **Next session:** owner decisions below; then device tests; then the PadForge
+  follow-ups (job cap, Homebrew leak warning).
+
 ## Rules for this run
 
 - Nothing public may contain translated or decompiled game code, keys, disc/ROM
