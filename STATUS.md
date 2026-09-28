@@ -204,6 +204,12 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 06:02 **AnnePad complete personal build through PadForge** (#7 at
   `89208c4`): 26m07s, exit 0, all stages including packaging and export,
   84.7 MB IPA, gate FAIL as intended → **L4 on branch**. DinoPad started.
+- 06:02 DinoPad reached the iOS compile, then the base-edition preparation
+  demanded the restoration dispatch map, which only the DinoMod restoration
+  step creates. It is only needed to undo restoration renames; a base-only
+  generation has none. Fixed on #7 (`b8f864a`: skip when nothing to undo,
+  still refuse renamed code without the map); base preparation verified.
+  Re-queued after SnapPad (running).
 
 ## Level snapshot (01:00)
 
