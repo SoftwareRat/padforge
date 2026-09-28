@@ -159,6 +159,15 @@ tracker; this file mirrors progress so work can resume after interruption.
   pushes), KidPad (release-public job on push to main), RAtouch (inherited
   workflows run on any push and include a "latest" development-release job).
   Pushing there could publish, so the rule is an owner item.
+- 04:37 **GoldenPad correction:** the recorded L2 blocker was wrong — the
+  pinned fork (`7c56979`) contains `us.toml` and both TLB-free patch files,
+  byte-identical to upstream `a787fe0` (an ancestor). Draft #39 adds
+  `scripts/build-personal-ipa.sh` chaining the maintained steps plus a
+  byte-order/SHA-1-checked ROM conversion (verified on the owner's V64: exact
+  TLB-free hash) and points `padforge.json` at it. Queued for a full build.
+- 04:40 Queue runners launched from a tool shell die when the call ends; the
+  surviving ones run in their own session. Relaunched that way. Order:
+  SunPad (running) → AnnePad → KartPad Mac → GoldenPad (#39) → DinoPad → SnapPad.
 
 ## Level snapshot (01:00)
 
