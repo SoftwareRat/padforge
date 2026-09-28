@@ -5,6 +5,13 @@ records and progress display. BlueWake and KartPad retain their existing build
 implementations. No backend source has been copied, and no license has been
 inferred for upstream code. There is no plugin loading or arbitrary command option.
 
+**29 Sep update:** backend commands now come from each game's `padforge.json`
+(or the interim manifest in `catalog/`), not from code. A manifest can only
+fill the fixed placeholders `{repo}`, `{disc}`, `{work}`, `{output}` and
+`{jobs}` inside an argument list; values never become shell text. Personal
+outputs are run through `padforge audit` automatically and the result is
+stored in the attempt record. The table below still describes the backends.
+
 ## Current interface
 
 Only an explicitly selected local checkout at a full reviewed commit can run.

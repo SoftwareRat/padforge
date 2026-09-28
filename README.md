@@ -1,71 +1,74 @@
 # PadForge
 
-A shared local command-line frontend for the Pad projects' existing builders.
-Choose a supported game checkout and your disc image; its backend validates the
-input and builds a personal app on your computer.
+Build your own copy of a supported Pad game on your own computer, from your own
+disc or ROM. PadForge checks your computer, runs the game's own builder, shows
+progress, and audits the result. Nothing is uploaded and no game files are
+downloaded.
 
-**Experimental, not a release-ready player workflow.** The runner has synthetic
-tests; no complete game build through PadForge has been accepted yet. BlueWake
-is validating local optimization training. KartPad's Mac and Android adapters
-are not implemented. Public game-app distribution remains paused.
+**Experimental.** No complete game build through PadForge has been accepted
+yet. Public game-app distribution is paused. See [STATUS.md](STATUS.md) and
+[docs/DECISIONS.md](docs/DECISIONS.md).
 
-## Try the CLI
+## Commands
 
-Use Python 3.9 or newer on an Apple Silicon Mac. No Python packages are needed.
-Keep the game checkout clean at a commit you have reviewed and trust. PadForge
-does not download repositories or install build tools. Follow that game's
-dependency setup first (KartPad exposes `bootstrap` in its existing builder).
-
-From this repository:
+Python 3.9 or newer; no packages needed. From this repository:
 
 ```sh
-python3 -m padforge --help
+python3 -m padforge list                      # supported games and platforms
+python3 -m padforge doctor kartpad            # check this computer (installs nothing)
+python3 -m padforge doctor bluewake --repo /path/to/bluewake
+python3 -m padforge audit path/to/file-or-folder   # release gate
+python3 -m padforge check-manifest /path/to/game-repo
 python3 -m padforge plan bluewake --repo /path/to/bluewake \
   --revision FULL_REVIEWED_COMMIT --disc '/path/to/your disc.iso'
 ```
 
-Replace `FULL_REVIEWED_COMMIT` with the actual 40-character commit. `plan`
-validates paths and checkout state and prints the argument array without
-building or hashing the disc. Change `plan` to `build` to execute. BlueWake
-uses local `--train-pgo`; `--source-only` stops before compilation and
-`--no-mods` selects its base-game path. Training performance is still unverified.
+`plan` validates paths, checkout state and platform support and prints the
+exact backend command without building. Change `plan` to `build` to run it.
+Use `--target` to choose a platform the game declares (default `ios`),
+`--source-only`/`--no-mods` where the game supports them, and `--jobs 1-8`.
 
-For KartPad, select `kartpad` with its checkout and supported disc instead.
-The current adapter produces only an iOS IPA. `--jobs` accepts 1–8, default 2.
-KartPad has no source-only or mod-selection option in its current CLI.
+Builds run on the platforms each game marks *verified* or *experimental*;
+`list` shows the rest as *planned*. Today that is iPhone/iPad builds on an Apple
+Silicon Mac for BlueWake and KartPad. Windows and Linux support is planned; see
+the decision record for what has been tested.
 
-Builds, logs and records stay under the game's ignored `build/padforge/`.
-Use `--workspace-root /path/to/game/build/separate-check` for a separate ignored
-workspace; it shares the same checkout-wide lock.
-Preflight and full builds share backend work, as do runs with different job counts.
-Each attempt retains its own options, log and output. Changing the backend revision
-(even docs-only), disc, target or mods selects a separate workspace. Old workspaces
-from earlier PadForge key formats remain preserved but are not automatically reused.
-Ctrl-C requests cancellation
-and keeps existing work. PadForge allows one of its builds per game checkout;
-do not run the backend directly in parallel. Detailed logs may contain local
-paths and should not be shared without review. Nothing is installed on a device
-or uploaded by PadForge. A personal IPA still needs separate signing/install.
+## How games plug in
 
-## Status and next steps
+Each game repository declares a `padforge.json` manifest (schema in
+[padforge/manifest.py](padforge/manifest.py)): accepted inputs, platforms and
+their status, the backend command, stages, requirements and publication
+policy. PadForge's [catalog](catalog/) pins each supported game and carries an
+interim manifest for repositories that do not have one yet. Game-specific
+translation, patches and packaging stay in the game repository.
 
-One real BlueWake source-only integration passed at reviewed revision
-`36b8488e7887e4f3ea4600c7d09790a24c241021`: extraction, translation and verified
-composite-source generation completed with progress and a successful record.
-This did not compile a game app, package an IPA or test a device.
+## What a build does and does not do
 
-[Integration notes](docs/INTEGRATION.md) describe the exact backend commands,
-progress and cancellation limits, provenance gaps and remaining acceptance
-checks. The first frontend is a CLI; a downloadable Mac app can come later.
-Windows and additional targets require their own tested adapters. KartPad's
-four-platform relaunch waits for those checks.
+- Keep the game checkout clean at a commit you have reviewed. PadForge does
+  not download repositories or install tools; follow `doctor`'s suggestions.
+- Builds, logs and records stay under the game's ignored `build/padforge/`.
+  One PadForge build runs per checkout; Ctrl-C cancels and keeps finished work.
+- Every personal output is checked for structure and provenance, then run
+  through the release gate. The record labels it *personal build, not
+  publishable* regardless of the gate result.
+- Nothing is installed on a device or uploaded. A personal IPA still needs
+  your own signing (AltStore, SideStore, Sideloadly or Xcode).
+
+## The release gate
+
+`padforge audit` scans files, folders and ZIP-based packages for console keys,
+address-named translated game functions, embedded original program sections
+and provenance declaring translated game code. It fails closed on archives it
+cannot inspect. Keys are identified by a short prefix and a SHA-256 hash; this
+repository contains no keys. A PASS is a heuristic result, not copyright or
+licensing clearance.
 
 Game inputs, generated game code, saves, keys, personal builds and optimization
-profiles do not belong in this repository. A local-build workflow and a passing
-scanner do not establish copyright clearance for source, dependencies or outputs.
+profiles never belong in this repository.
 
-Run the orchestration tests:
+## Tests
 
 ```sh
 python3 -m unittest discover -s tests -v
 ```
+

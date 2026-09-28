@@ -1,7 +1,8 @@
 # Agent instructions
 
 - This repository holds only the shared Builder: its pipeline, profiles, tests and docs. Never commit or upload game code (translated or decompiled), disc images, ROMs, extracted game files, saves, console keys or personal builds.
-- Before any public release, every asset must pass `python3 ~/.codex/release-gate/release_gate.py <asset>` on the maintainer's machine. A failure is a stop, not a note.
-- The first working pipeline is being developed in the BlueWake repository (`scripts/builder/`). Coordinate with that work before moving code here; there must be only one Builder.
-- Keep it simple: a generic pipeline plus one small profile per game.
-
+- Before any public release, every asset must pass `python3 -m padforge audit <asset>` (and the private `~/.codex/release-gate/release_gate.py` while it remains the reference). A failure is a stop, not a note.
+- Never commit key bytes, key hex or key byte lists, even in tests or gate code. Identify keys by prefix + SHA-256 only (see `padforge/gate.py`). Build detector strings at runtime so this repository passes its own gate.
+- Game-specific logic stays in each game's repository behind its `padforge.json`; PadForge owns validation, running, progress, records and the gate. There must be only one Builder.
+- Only document commands that exist. Label platforms as verified, experimental or planned and do not upgrade a label without a recorded run.
+- Keep it simple: a generic runner plus one small manifest per game.

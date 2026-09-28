@@ -1,0 +1,97 @@
+# PadForge decisions
+
+Recorded 29 Sep 2026 during the overnight run. Evidence is from this Mac; items
+marked *unverified* have not been demonstrated. Scanner results and build
+feasibility are technical findings, not copyright or licensing clearance.
+
+## D1. Command line first; the GUI is a thin layer over the same engine
+
+- **Engine:** the Python CLI (`python3 -m padforge`). Python runs on macOS,
+  Windows and Linux, needs no packages, and already implements locking,
+  progress relay, cancellation and build records.
+- **First GUI:** `padforge ui`, a local browser page served by Python's standard
+  library on `127.0.0.1`, reading the same `progress.jsonl` events. No Electron,
+  Tauri or native toolkit, so there is nothing extra to sign or notarize per OS.
+- **Later:** a downloadable one-file bundle (`.dmg`/`.exe`/AppImage) once a
+  complete build works through the CLI and players need a no-Python install.
+- **Why:** one engine for all three operating systems; the interface cannot
+  drift from what the CLI actually does; the expensive part (tool setup and
+  multi-hour builds) is the same either way.
+
+## D2. Games plug in through a manifest they own
+
+- Each game repository owns `padforge.json` (schema in
+  [`padforge/manifest.py`](../padforge/manifest.py)): identity, kind, accepted
+  inputs, host/target matrix with per-cell status, entry commands, stages,
+  output checks and publication policy.
+- PadForge's catalog (`catalog/*.json`) pins each supported game to a
+  repository URL and a reviewed commit. Adding a game = manifest in its repo +
+  one catalog entry. Game-specific translation, patches and packaging stay in
+  the game repository; PadForge does not copy them.
+- Kinds: `disc-translation` (static recompilation), `emulator-shell`,
+  `decomp-patches` (fetch upstream decompilation, apply own patches),
+  `upstream-engine` (fetch other projects' engines), `clean-engine`.
+
+## D3. PadForge is the home of the compliance gate
+
+- `padforge audit <path>` runs the release gate (copied from the private
+  `~/.codex/release-gate/release_gate.py`, which remains the reference until the
+  owner retires it). Every PadForge package step runs it automatically and
+  records the result: personal builds must be labeled *personal, not
+  publishable*; source archives must pass.
+- A gate failure on anything intended for publication is a stop.
+
+## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
+
+Test (BlueWake, private scratch, nothing committed): one real translated chunk
+(1.47 MB C source) plus all eight runtime/export sources of the game module were
+compiled with Homebrew's open-source clang 22 for `arm64-apple-ios17.0` using
+`-nostdlibinc` and a 5-file header shim of standard C prototypes written for
+the test. Only 11 C-library symbols are needed from the system. `ld64.lld`
+linked them against a hand-written 13-symbol `libSystem.tbd` stub into an iOS
+Mach-O dylib: platform iOS, min 17.0, only `/usr/lib/libSystem.B.dylib`
+loaded (same as the Xcode-built module), exporting `staticrecomp_get_module`
+and `staticrecomp_get_rel_data`. Ad-hoc signing and `codesign --verify --strict`
+passed. The chunk took 244 s at -O2 under load ~230.
+
+What this means: BlueWake's iOS app already loads the game from
+`Frameworks/gGZLE01_recomp.dylib` at runtime. A runtime-only app (the gate
+passes BlueWake's app without that file) plus a module built on the player's
+computer with LLVM (available for Windows, Linux and macOS), inserted before
+signing with Sideloadly/AltStore/SideStore or `zsign`, would let Windows and
+Linux users make iPhone builds without Xcode.
+
+Unverified: a complete 808-unit module linked this way; loading it on a device;
+whether the translator (DolRecomp) and training host build on Windows/Linux;
+local optimization training off macOS. KartPad does **not** have this split
+today: its translated C++ is linked statically into the app
+(`add_library(kartpad_g7_translated STATIC)`), so it needs a module refactor
+first. Publishing a runtime-only IPA/APK is an owner decision.
+
+## S2. Android builds from Linux/Windows: conditional yes
+
+KartPad's Android build reuses the same translation output as iOS and uses
+cross-platform tools (Gradle, NDK, CMake, .NET 8 translator, Python). It is
+deliberately locked to Apple Silicon macOS by `scripts/check-android-host.sh`
+(`uname` check), plus Mac-specific paths: JDK `Contents/Home`, NDK
+`prebuilt/darwin-x86_64`, Homebrew `dotnet@8`. The host check also requires the
+emulator and system images, which a build does not need. Estimated work:
+host-neutral paths and a build-only host check; Windows via WSL2 for the bash
+scripts. Not built on Linux/Windows tonight (Docker daemon not running; the Mac
+was under another agent's build).
+
+## S3. Runtime-only APK plus player module
+
+Android 10+ restricts executing code from an app's writable data directory for
+apps targeting API 29+; whether `dlopen` from app storage is reliable is
+*unverified* and not relied on. Preferred route mirrors iPhone: insert the
+player's module into the runtime APK's `lib/arm64-v8a/` on the computer, then
+zipalign and sign with a key generated on that machine (`apksigner`,
+cross-platform). Requires the same module split as S1.
+
+## Resulting direction
+
+1. Now: Mac builds everything (iPhone/iPad, Mac, Android) through PadForge.
+2. Next: host-neutral Android builds (Linux, then Windows via WSL2).
+3. Then, owner decision: runtime-only public apps plus player-built modules,
+   starting with BlueWake (already split), then KartPad after a module refactor.

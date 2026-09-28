@@ -1,0 +1,153 @@
+"""`padforge.json` schema v1: what a game repository declares to PadForge.
+
+A game repository owns its manifest. PadForge's catalog (`catalog/*.json`) lists
+supported games and may carry an interim manifest for a repository that has not
+added its own yet. Game-specific work stays in the game repository.
+"""
+import hashlib
+import json
+from pathlib import Path
+import platform
+import re
+import string
+
+SCHEMA_VERSION = 1
+KINDS = {"disc-translation", "emulator-shell", "decomp-patches", "upstream-engine", "clean-engine"}
+STATUSES = {"draft-untested", "experimental", "supported", "retired"}
+HOSTS = {"macos-arm64", "macos-x86_64", "linux-x86_64", "linux-arm64", "windows-x86_64"}
+HOST_STATES = {"verified", "experimental", "planned", "unsupported"}
+RUNNABLE_STATES = {"verified", "experimental"}
+TARGETS = {"ios", "macos", "android", "windows", "linux"}
+PLACEHOLDERS = {"repo", "disc", "work", "output", "jobs"}
+CHECKS = {"bluewake-ipa", "kartpad-ipa", "none"}
+CATALOG = Path(__file__).resolve().parent.parent / "catalog"
+_ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
+
+
+def _require(condition, message):
+    if not condition:
+        raise ValueError(f"padforge.json: {message}")
+
+
+def _argv(value, where):
+    _require(isinstance(value, list) and all(isinstance(item, str) for item in value),
+             f"{where} must be a list of strings")
+    for item in value:
+        for _, field, _, _ in string.Formatter().parse(item):
+            _require(field is None or field in PLACEHOLDERS,
+                     f"{where} uses unknown placeholder {{{field}}}")
+
+
+def validate_manifest(data):
+    """Validate a manifest dictionary and return it unchanged."""
+    _require(isinstance(data, dict), "manifest must be an object")
+    _require(data.get("schema_version") == SCHEMA_VERSION, f"schema_version must be {SCHEMA_VERSION}")
+    _require(isinstance(data.get("id"), str) and _ID.fullmatch(data["id"]), "id must be a short lowercase slug")
+    for field in ("name", "game"):
+        _require(isinstance(data.get(field), str) and data[field], f"{field} is required")
+    _require(data.get("kind") in KINDS, f"kind must be one of {sorted(KINDS)}")
+    _require(data.get("status") in STATUSES, f"status must be one of {sorted(STATUSES)}")
+    inputs = data.get("inputs")
+    _require(isinstance(inputs, list) and inputs, "inputs must list at least one accepted input")
+    for item in inputs:
+        _require(isinstance(item, dict) and isinstance(item.get("type"), str), "each input needs a type")
+        _require(isinstance(item.get("formats", []), list), "input formats must be a list")
+        for digest in item.get("verified_sha256", []):
+            _require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest),
+                     "verified_sha256 entries must be lowercase SHA-256 digests")
+    targets = data.get("targets")
+    _require(isinstance(targets, dict) and targets, "targets must declare at least one target")
+    for name, target in targets.items():
+        where = f"targets.{name}"
+        _require(name in TARGETS, f"unknown target {name}")
+        _require(isinstance(target, dict), f"{where} must be an object")
+        hosts = target.get("hosts")
+        _require(isinstance(hosts, dict) and hosts, f"{where}.hosts must map hosts to states")
+        for host, state in hosts.items():
+            _require(host in HOSTS, f"{where}.hosts has unknown host {host}")
+            _require(state in HOST_STATES, f"{where}.hosts.{host} must be one of {sorted(HOST_STATES)}")
+        runnable = any(state in RUNNABLE_STATES for state in hosts.values())
+        if "command" in target:
+            _argv(target["command"], f"{where}.command")
+        _require(not runnable or "command" in target, f"{where} has a runnable host but no command")
+        modes = target.get("modes", {"full": []})
+        _require(isinstance(modes, dict) and "full" in modes, f"{where}.modes must include full")
+        for mode, extra in modes.items():
+            _argv(extra, f"{where}.modes.{mode}")
+        options = target.get("options", {})
+        _require(isinstance(options, dict), f"{where}.options must be an object")
+        for option, extra in options.items():
+            _argv(extra, f"{where}.options.{option}")
+        _require(target.get("check", "none") in CHECKS, f"{where}.check must be one of {sorted(CHECKS)}")
+    requirements = data.get("requirements", {})
+    _require(isinstance(requirements, dict), "requirements must be an object")
+    for tool in requirements.get("tools", []):
+        _require(isinstance(tool, dict) and isinstance(tool.get("name"), str), "each tool needs a name")
+        if "version_args" in tool:
+            _argv(tool["version_args"], f"tool {tool['name']}.version_args")
+        if "min_version" in tool:
+            _require(re.fullmatch(r"\d+(\.\d+)*", str(tool["min_version"])), "min_version must be dotted digits")
+    disk = requirements.get("disk_gb", 0)
+    _require(isinstance(disk, (int, float)) and disk >= 0, "requirements.disk_gb must be a number")
+    publication = data.get("publication")
+    _require(isinstance(publication, dict) and isinstance(publication.get("public_binaries"), bool),
+             "publication.public_binaries must be true or false")
+    return data
+
+
+def manifest_sha256(data):
+    return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+
+def load_manifest(path):
+    with Path(path).open() as stream:
+        return validate_manifest(json.load(stream))
+
+
+def catalog():
+    """Return catalog entries keyed by game ID."""
+    entries = {}
+    for path in sorted(CATALOG.glob("*.json")):
+        with path.open() as stream:
+            entry = json.load(stream)
+        if not isinstance(entry, dict) or entry.get("id") != path.stem:
+            raise ValueError(f"catalog/{path.name}: id must match the file name")
+        if not str(entry.get("repo_url", "")).startswith("https://"):
+            raise ValueError(f"catalog/{path.name}: repo_url must be an https URL")
+        revision = entry.get("reviewed_revision")
+        if revision is not None and not re.fullmatch(r"[0-9a-f]{40}", str(revision)):
+            raise ValueError(f"catalog/{path.name}: reviewed_revision must be a full commit or null")
+        if entry.get("manifest") is not None:
+            validate_manifest(entry["manifest"])
+            if entry["manifest"]["id"] != entry["id"]:
+                raise ValueError(f"catalog/{path.name}: interim manifest id mismatch")
+        entries[entry["id"]] = entry
+    return entries
+
+
+def manifest_for(game, repo=None):
+    """The game repository's own manifest wins; otherwise the catalog's interim one."""
+    if repo is not None and (Path(repo) / "padforge.json").is_file():
+        data = load_manifest(Path(repo) / "padforge.json")
+        if data["id"] != game:
+            raise ValueError(f"Checkout's padforge.json declares {data['id']}, not {game}")
+        return data, "repository"
+    entry = catalog().get(game)
+    if entry is None:
+        raise ValueError(f"Unknown game {game}; see 'padforge list'")
+    if entry.get("manifest") is None:
+        raise ValueError(f"{game} expects padforge.json in its checkout")
+    return entry["manifest"], "catalog"
+
+
+def host_id():
+    system = {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(platform.system(), platform.system().lower())
+    machine = platform.machine().lower()
+    machine = {"aarch64": "arm64", "amd64": "x86_64"}.get(machine, machine)
+    return f"{system}-{machine}"
+
+
+def expand(template, values):
+    """Fill placeholders inside a fixed argument list; values never become shell text."""
+    return [item.format_map(values) for item in template]
+

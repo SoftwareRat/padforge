@@ -1,24 +1,27 @@
-"""A small, Mac-only runner. Game backends retain validation and caching."""
+"""PadForge: build your own copy of a supported Pad game on your own computer.
+
+Commands: list, doctor, check-manifest, audit, plan, build. Game backends keep
+their own validation and caching; PadForge validates inputs, runs the backend,
+relays progress, and records and audits the result.
+"""
 import argparse
 import contextlib
-import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
-import platform
 import re
+import shutil
 import signal
 import subprocess
 import sys
 import time
 import uuid
 
-from . import __version__
+from . import __version__, gate
+from .manifest import (RUNNABLE_STATES, catalog, expand, host_id, load_manifest,
+                       manifest_for, manifest_sha256)
 from .package import validate_ipa
-
-ENTRYPOINTS = {"bluewake": "scripts/builder/build.sh",
-               "kartpad": "scripts/build-user-ipa.sh"}
 
 
 def git(repo, *args):
@@ -42,6 +45,7 @@ def atomic_json(path, value):
 @contextlib.contextmanager
 def workspace_lock(path):
     # Kernel releases the lock on exit/crash; do not delete the lock file.
+    import fcntl  # POSIX only; builds are not supported natively on Windows yet.
     with path.open("a") as stream:
         try:
             fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -60,6 +64,18 @@ def check_checkout(repo, revision):
         raise ValueError("Backend has local changes; use a clean reviewed checkout")
 
 
+def selection(args, repo):
+    """Return (manifest, target name, target) for the requested game and target."""
+    manifest, _source = manifest_for(args.game, repo)
+    name = getattr(args, "target", None) or "ios"
+    target = manifest["targets"].get(name)
+    if target is None:
+        raise ValueError(f"{manifest['name']} does not declare a {name} target")
+    if "command" not in target:
+        raise ValueError(f"{manifest['name']} {name} builds are planned, not implemented")
+    return manifest, name, target
+
+
 def validate(args):
     repo = args.repo.expanduser().resolve()
     disc = args.disc.expanduser().resolve()
@@ -70,24 +86,26 @@ def validate(args):
     if git(repo, "rev-parse", "--show-toplevel") != str(repo):
         raise ValueError("--repo must be the root of the selected backend checkout")
     check_checkout(repo, args.revision)
-    if not (repo / ENTRYPOINTS[args.game]).is_file():
-        raise ValueError("Selected checkout does not contain the game's entrypoint")
-    if args.game == "kartpad" and (args.source_only or args.no_mods):
-        raise ValueError("KartPad does not expose source-only or mod selection through its CLI")
+    manifest, _name, target = selection(args, repo)
+    for item in target["command"]:
+        if item.startswith("{repo}/") and not (repo / item[len("{repo}/"):]).is_file():
+            raise ValueError("Selected checkout does not contain the game's entrypoint")
+    if args.source_only and "source-only" not in target.get("modes", {}):
+        raise ValueError(f"{manifest['name']} does not expose source-only builds through its CLI")
+    if args.no_mods and "no-mods" not in target.get("options", {}):
+        raise ValueError(f"{manifest['name']} does not expose mod selection through its CLI")
     return repo, disc
 
 
 def command(args, repo, disc, work, output):
-    base = ["/bin/bash", str(repo / ENTRYPOINTS[args.game])]
-    if args.game == "bluewake":
-        base += [str(disc), "--out", str(work), "--jobs", str(args.jobs)]
-        base += ["--source-only"] if args.source_only else ["--train-pgo", "--ipa", str(output)]
-        if args.no_mods:
-            base += ["--no-mods"]
-    else:
-        base += ["build", str(disc), "--work-root", str(work),
-                 "--output", str(output), "--jobs", str(args.jobs)]
-    return base
+    _manifest, _name, target = selection(args, repo)
+    values = {"repo": str(repo), "disc": str(disc), "work": str(work),
+              "output": str(output), "jobs": str(args.jobs)}
+    mode = "source-only" if args.source_only else "full"
+    argv = expand(target["command"], values) + expand(target.get("modes", {}).get(mode, []), values)
+    if args.no_mods:
+        argv += expand(target["options"]["no-mods"], values)
+    return argv
 
 
 def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
@@ -180,7 +198,22 @@ def workspace_root(args, repo):
     return root
 
 
+def check_output(check, output, game_revision, disc_sha256):
+    if check == "none":
+        return {"check": "none"}
+    return validate_ipa(output, check.split("-")[0], game_revision, disc_sha256)
+
+
+def publication_gate(output):
+    """Audit every personal output; personal builds are never publishable either way."""
+    findings, translated = gate.check(str(output))
+    return {"result": "FAIL" if findings else "PASS", "finding_count": len(findings),
+            "address_named_functions": translated, "findings": sorted(set(findings))[:10],
+            "label": "personal build, not publishable"}
+
+
 def execute(args, repo, disc):
+    manifest, target_name, target = selection(args, repo)
     # One lock per backend checkout also covers caches outside the selected work dir.
     lock_root = repo / "build/padforge"
     root = workspace_root(args, repo)
@@ -190,12 +223,11 @@ def execute(args, repo, disc):
     lock_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with workspace_lock(lock_root / "runner.lock"):
         print("Hashing the disc for the build record…", flush=True)
+        mods = (not args.no_mods) if "no-mods" in target.get("options", {}) else "backend-default"
         identity = {"schema_version": 1, "padforge_version": __version__,
                     "game": args.game, "revision": args.revision,
-                    "disc_sha256": digest(disc), "target": "ios",
-                    "mods": (not args.no_mods) if args.game == "bluewake" else "backend-default",
-                    "source_only": args.source_only,
-                    "jobs": args.jobs}
+                    "disc_sha256": digest(disc), "target": target_name,
+                    "mods": mods, "source_only": args.source_only, "jobs": args.jobs}
         # Invocation controls belong to the attempt, not to reusable build inputs.
         # Keep revisions isolated until every adapter proves cross-revision invalidation.
         workspace_identity = {name: identity[name] for name in
@@ -205,7 +237,7 @@ def execute(args, repo, disc):
         work = root / key / "backend"
         attempt = root / key / "runs" / uuid.uuid4().hex
         attempt.mkdir(parents=True, mode=0o700)
-        output = attempt / "personal.ipa"
+        output = attempt / f"personal.{target.get('output', 'ipa')}"
         started = time.monotonic()
 
         def emit(event, **fields):
@@ -221,6 +253,7 @@ def execute(args, repo, disc):
                   f"{backend.get('stage', '')} {backend.get('event', '')}{counts}".strip(), flush=True)
 
         record = dict(identity, workspace_key=key, workspace_identity=workspace_identity,
+                      manifest_sha256=manifest_sha256(manifest),
                       status="running", publication="personal-only",
                       backend_validation="not-established-by-runner")
         atomic_json(attempt / "record.json", record)
@@ -239,11 +272,14 @@ def execute(args, repo, disc):
             recheck("after-exit")
             if code == 0 and not args.source_only:
                 if not output.is_file() or output.stat().st_size == 0:
-                    raise ValueError("Backend exited successfully but produced no IPA")
-                record["package_validation"] = validate_ipa(output, args.game, args.revision,
-                                                            identity["disc_sha256"])
+                    raise ValueError("Backend exited successfully but produced no output")
+                record["package_validation"] = check_output(target.get("check", "none"), output,
+                                                            args.revision, identity["disc_sha256"])
                 record["output_sha256"] = digest(output)
-                record["output"] = "personal.ipa"
+                record["output"] = output.name
+                record["publication_gate"] = publication_gate(output)
+                print(f"Release gate on personal output: {record['publication_gate']['result']} "
+                      "(personal build, not publishable)", flush=True)
             recheck("before-record")
             status = "cancelled" if cancelled else "completed" if code == 0 else "failed"
         except (OSError, ValueError, subprocess.CalledProcessError) as error:
@@ -257,32 +293,145 @@ def execute(args, repo, disc):
         return code if code >= 0 else 128 - code
 
 
+def version_tuple(text):
+    match = re.search(r"\d+(?:\.\d+)*", text)
+    return tuple(int(part) for part in match.group().split(".")) if match else None
+
+
+def doctor(game, target_name, repo=None, stream=sys.stdout):
+    """Check this computer against a game's declared requirements; install nothing."""
+    manifest, source = manifest_for(game, repo)
+    problems = 0
+
+    def report(ok, label, detail=""):
+        nonlocal problems
+        problems += 0 if ok else 1
+        print(f"{'ok  ' if ok else 'FIX '} {label}{': ' + detail if detail else ''}", file=stream)
+
+    print(f"{manifest['name']} ({manifest['status']}, manifest from {source})", file=stream)
+    report(sys.version_info >= (3, 9), "Python 3.9+", sys.version.split()[0])
+    host = host_id()
+    target = manifest["targets"].get(target_name)
+    if target is None:
+        report(False, f"{target_name} target", "not declared by this game")
+    else:
+        state = target["hosts"].get(host, "unsupported")
+        report(state in RUNNABLE_STATES, f"{target_name} builds on {host}", state)
+    for tool in manifest.get("requirements", {}).get("tools", []):
+        path = shutil.which(tool["name"])
+        if path is None:
+            report(False, tool["name"], tool.get("note", "not found on PATH"))
+            continue
+        detail = path
+        ok = True
+        if "version_args" in tool:
+            try:
+                result = subprocess.run([path, *tool["version_args"]], capture_output=True,
+                                        text=True, timeout=30)
+                text = (result.stdout or result.stderr).strip().splitlines()
+                detail = text[0] if text else path
+                found = version_tuple(detail)
+                if "min_version" in tool:
+                    minimum = version_tuple(str(tool["min_version"]))
+                    ok = found is not None and found >= minimum
+                    detail += f" (need {tool['min_version']}+)"
+            except (OSError, subprocess.TimeoutExpired):
+                ok, detail = False, "could not run version check"
+        report(ok, tool["name"], detail)
+    needed = manifest.get("requirements", {}).get("disk_gb", 0)
+    location = Path(repo) if repo else Path.cwd()
+    free = shutil.disk_usage(location).free / 1e9
+    report(free >= needed, "free disk space", f"{free:.0f} GB free, {needed} GB needed")
+    if repo is not None:
+        try:
+            dirty = git(repo, "status", "--porcelain", "--untracked-files=normal")
+            head = git(repo, "rev-parse", "HEAD")
+            report(not dirty, "clean checkout", head)
+            reviewed = catalog().get(game, {}).get("reviewed_revision")
+            if reviewed:
+                report(head == reviewed, "reviewed revision", reviewed)
+        except (OSError, subprocess.CalledProcessError):
+            report(False, "game checkout", "not a Git checkout")
+    print(f"{problems} item(s) to fix" if problems else "Ready", file=stream)
+    return 1 if problems else 0
+
+
+def list_games(stream=sys.stdout):
+    for game, entry in sorted(catalog().items()):
+        manifest = entry.get("manifest")
+        if manifest is None:
+            print(f"{game:12} manifest in repository  {entry['repo_url']}", file=stream)
+            continue
+        cells = ", ".join(f"{target}: " + "/".join(f"{host} {state}" for host, state in sorted(info["hosts"].items()))
+                          for target, info in sorted(manifest["targets"].items()))
+        print(f"{game:12} {manifest['kind']:17} {manifest['status']:15} {cells}", file=stream)
+    return 0
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(prog="padforge", description=__doc__,
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version=f"PadForge {__version__}")
+    commands = parser.add_subparsers(dest="action", required=True)
+    commands.add_parser("list", help="Show supported games and platforms")
+    doctor_parser = commands.add_parser("doctor", help="Check this computer for a game's requirements")
+    doctor_parser.add_argument("game")
+    doctor_parser.add_argument("--target", default="ios")
+    doctor_parser.add_argument("--repo", type=Path)
+    manifest_parser = commands.add_parser("check-manifest", help="Validate a padforge.json file")
+    manifest_parser.add_argument("path", type=Path)
+    audit_parser = commands.add_parser("audit", help="Run the release gate on files or folders")
+    audit_parser.add_argument("paths", nargs="+", type=Path)
+    audit_parser.add_argument("--reference", type=Path, help="Folder of original section blobs (*.bin)")
+    for action in ("plan", "build"):
+        sub = commands.add_parser(action, help="Show the backend command" if action == "plan"
+                                  else "Build a personal copy on this computer")
+        sub.add_argument("game")
+        sub.add_argument("--repo", type=Path, required=True)
+        sub.add_argument("--revision", required=True, help="Full commit you have reviewed and trust")
+        sub.add_argument("--disc", type=Path, required=True)
+        sub.add_argument("--target", default="ios")
+        sub.add_argument("--workspace-root", type=Path,
+                         help="Ignored directory below backend build/ (default: build/padforge)")
+        sub.add_argument("--jobs", type=int, choices=range(1, 9), default=2)
+        sub.add_argument("--source-only", action="store_true", help="Stop before compilation (if supported)")
+        sub.add_argument("--no-mods", action="store_true", help="Build without mods (if supported)")
+    return parser
+
+
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["plan", "build"])
-    parser.add_argument("game", choices=ENTRYPOINTS)
-    parser.add_argument("--repo", type=Path, required=True)
-    parser.add_argument("--revision", required=True, help="Full commit you have reviewed and trust")
-    parser.add_argument("--disc", type=Path, required=True)
-    parser.add_argument("--workspace-root", type=Path,
-                        help="Ignored directory below backend build/ (default: build/padforge)")
-    parser.add_argument("--jobs", type=int, choices=range(1, 9), default=2)
-    parser.add_argument("--source-only", action="store_true", help="BlueWake: stop before compilation")
-    parser.add_argument("--no-mods", action="store_true", help="BlueWake only")
-    args = parser.parse_args(argv)
+    args = build_parser().parse_args(argv)
     try:
+        if args.action == "list":
+            return list_games()
+        if args.action == "doctor":
+            repo = args.repo.expanduser().resolve() if args.repo else None
+            return doctor(args.game, args.target, repo)
+        if args.action == "check-manifest":
+            path = args.path / "padforge.json" if args.path.is_dir() else args.path
+            data = load_manifest(path)
+            print(f"ok {path}: {data['id']} ({data['kind']}, {data['status']})")
+            return 0
+        if args.action == "audit":
+            return gate.audit(args.paths, args.reference)
         repo, disc = validate(args)
+        manifest, target_name, target = selection(args, repo)
+        state = target["hosts"].get(host_id(), "unsupported")
         if args.action == "plan":
             root = workspace_root(args, repo)
-            print(json.dumps({"experimental": True, "target": "ios", "argv": command(
-                args, repo, disc, root / "CONFIG/backend",
-                root / "CONFIG/runs/ATTEMPT/personal.ipa")}, indent=2))
+            print(json.dumps({"game": manifest["id"], "status": manifest["status"],
+                              "target": target_name, "host": host_id(), "host_state": state,
+                              "argv": command(args, repo, disc, root / "CONFIG/backend",
+                                              root / "CONFIG/runs/ATTEMPT/personal.ipa")}, indent=2))
             return 0
-        if platform.system() != "Darwin" or platform.machine() != "arm64":
-            raise ValueError("This experimental runner currently supports Apple Silicon Macs only")
+        if state not in RUNNABLE_STATES:
+            raise ValueError(f"{manifest['name']} {target_name} builds are {state} on {host_id()}")
+        if os.name != "posix":
+            raise ValueError("Builds need macOS or Linux for now (on Windows, use WSL2)")
         return execute(args, repo, disc)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"PadForge: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         return 130
+
