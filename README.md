@@ -1,45 +1,71 @@
 # PadForge
 
-Build your own copy of a game port on your own Mac, from your own game disc or ROM.
+A shared local command-line frontend for the Pad projects' existing builders.
+Choose a supported game checkout and your disc image; its backend validates the
+input and builds a personal app on your computer.
 
-PadForge is the shared Builder for the *Pad ports (KartPad, BlueWake, SunPad, StarshipPad and others). The ports publish only their own code. PadForge combines that code with the game you own, on your computer, and gives you an app for your iPhone, iPad, Mac or Android device. Nothing it builds is ever uploaded.
+**Experimental, not a release-ready player workflow.** The runner has synthetic
+tests; no complete game build through PadForge has been accepted yet. BlueWake
+is validating local optimization training. KartPad's Mac and Android adapters
+are not implemented. Public game-app distribution remains paused.
 
-> **Status: planning.** The first working Builder is being developed in the BlueWake repository (`scripts/builder/`) and will move here. Nothing in this repository is usable yet.
+## Try the CLI
 
-## How it will work
+Use Python 3.9 or newer on an Apple Silicon Mac. No Python packages are needed.
+Keep the game checkout clean at a commit you have reviewed and trust. PadForge
+does not download repositories or install build tools. Follow that game's
+dependency setup first (KartPad exposes `bootstrap` in its existing builder).
 
-1. Install PadForge on a Mac (command line first; a Mac app later).
-2. Choose a game and point PadForge at your own disc image or ROM.
-3. PadForge checks that it is a supported copy, then builds the game part on your Mac. For some games this takes a few hours the first time; later app updates reuse it.
-4. It installs the app on a connected iPhone or iPad, or writes a personal IPA, APK or Mac app for you to sign and install yourself.
+From this repository:
 
-## What PadForge never does
+```sh
+python3 -m padforge --help
+python3 -m padforge plan bluewake --repo /path/to/bluewake \
+  --revision FULL_REVIEWED_COMMIT --disc '/path/to/your disc.iso'
+```
 
-- It never includes game code, disc images, ROMs, extracted game files, saves or console keys, in this repository or in any release.
-- It never uploads anything it builds. Your personal build is for you only; don't share it.
+Replace `FULL_REVIEWED_COMMIT` with the actual 40-character commit. `plan`
+validates paths and checkout state and prints the argument array without
+building or hashing the disc. Change `plan` to `build` to execute. BlueWake
+uses local `--train-pgo`; `--source-only` stops before compilation and
+`--no-mods` selects its base-game path. Training performance is still unverified.
 
-## Two kinds of game profile
+For KartPad, select `kartpad` with its checkout and supported disc instead.
+The current adapter produces only an iOS IPA. `--jobs` accepts 1–8, default 2.
+KartPad has no source-only or mod-selection option in its current CLI.
 
-Each port plugs in a small profile describing its game.
+Builds, logs and records stay under the game's ignored `build/padforge/`.
+Use `--workspace-root /path/to/game/build/separate-check` for a separate ignored
+workspace; it shares the same checkout-wide lock.
+Preflight and full builds share backend work, as do runs with different job counts.
+Each attempt retains its own options, log and output. Changing the backend revision
+(even docs-only), disc, target or mods selects a separate workspace. Old workspaces
+from earlier PadForge key formats remain preserved but are not automatically reused.
+Ctrl-C requests cancellation
+and keeps existing work. PadForge allows one of its builds per game checkout;
+do not run the backend directly in parallel. Detailed logs may contain local
+paths and should not be shared without review. Nothing is installed on a device
+or uploaded by PadForge. A personal IPA still needs separate signing/install.
 
-| Kind | Where the game code comes from | Ports |
-| --- | --- | --- |
-| Disc translation (static recompilation) | Translated from your own disc during the build | KartPad, BlueWake, SunPad, GalaxyPad, GoldenPad, AnnePad, BearBirdPad, SnapPad, BananaPad, BarrelPad, DinoPad |
-| Decompilation | Fetched from the original decompilation project at a pinned commit, with the port's own patches applied; art and sound come from your ROM or disc | HarkinianPad, SpaghettiPad, MaskPad, StarshipPad, PaperPad, F0X, BrawlerPad, BellPad, BallPad, DevilTouch, CTRPad |
+## Status and next steps
 
-## Platforms
+One real BlueWake source-only integration passed at reviewed revision
+`36b8488e7887e4f3ea4600c7d09790a24c241021`: extraction, translation and verified
+composite-source generation completed with progress and a successful record.
+This did not compile a game app, package an IPA or test a device.
 
-- **Mac:** builds iPhone and iPad apps, Mac apps and Android apps.
-- **Windows (later):** Android apps only. Building iPhone and iPad apps requires Apple's Xcode, which runs only on a Mac.
+[Integration notes](docs/INTEGRATION.md) describe the exact backend commands,
+progress and cancellation limits, provenance gaps and remaining acceptance
+checks. The first frontend is a CLI; a downloadable Mac app can come later.
+Windows and additional targets require their own tested adapters. KartPad's
+four-platform relaunch waits for those checks.
 
-## Builder contract
+Game inputs, generated game code, saves, keys, personal builds and optimization
+profiles do not belong in this repository. A local-build workflow and a passing
+scanner do not establish copyright clearance for source, dependencies or outputs.
 
-Every profile must:
+Run the orchestration tests:
 
-1. accept only verified game copies (disc ID and revision, or exact file hashes) and refuse everything else with a clear message;
-2. pin every translator, runtime and dependency by commit or checksum;
-3. check the generated game source against a recorded digest before the long compile;
-4. produce a personal build containing only the app and the player's own game module and files, audited before packaging and written only to ignored paths;
-5. record provenance (profile, source commit, digests) with the build for bug reports;
-6. never be published: the release check must fail on any personal build. Public releases contain source and notices only.
-
+```sh
+python3 -m unittest discover -s tests -v
+```
