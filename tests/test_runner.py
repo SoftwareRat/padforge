@@ -108,6 +108,17 @@ exit 2
         record = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
         self.assertEqual(json.loads(record.read_text())["status"], "failed")
 
+    def test_custom_workspace_stays_ignored_and_uses_shared_lock(self):
+        self.args.workspace_root = self.repo / "build/separate-check"
+        self.assertEqual(execute(self.args, self.repo, self.disc), 0)
+        self.assertEqual(len(list(self.args.workspace_root.glob("*/runs/*/record.json"))), 1)
+        with workspace_lock(self.repo / "build/padforge/runner.lock"):
+            with self.assertRaisesRegex(ValueError, "Another"):
+                execute(self.args, self.repo, self.disc)
+        self.args.workspace_root = self.root / "outside"
+        with self.assertRaisesRegex(ValueError, "below"):
+            execute(self.args, self.repo, self.disc)
+
     def test_mutation_during_disc_hash_prevents_launch(self):
         original = self.repo / "scripts/build-user-ipa.sh"
         def mutate(path):

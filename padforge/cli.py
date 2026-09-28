@@ -172,13 +172,23 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
         signal.signal(signal.SIGTERM, previous)
 
 
+def workspace_root(args, repo):
+    selected = getattr(args, "workspace_root", None)
+    root = selected.expanduser().resolve() if selected else (repo / "build/padforge").resolve()
+    if repo / "build" not in root.parents:
+        raise ValueError("Workspace root must be below the backend's build directory")
+    return root
+
+
 def execute(args, repo, disc):
     # One lock per backend checkout also covers caches outside the selected work dir.
-    root = repo / "build/padforge"
+    lock_root = repo / "build/padforge"
+    root = workspace_root(args, repo)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
     if subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", str(root)]).returncode:
         raise ValueError("Backend must ignore build/padforge before running")
-    with workspace_lock(root / "runner.lock"):
+    lock_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with workspace_lock(lock_root / "runner.lock"):
         print("Hashing the disc for the build record…", flush=True)
         identity = {"schema_version": 1, "padforge_version": __version__,
                     "game": args.game, "revision": args.revision,
@@ -248,6 +258,8 @@ def main(argv=None):
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--revision", required=True, help="Full commit you have reviewed and trust")
     parser.add_argument("--disc", type=Path, required=True)
+    parser.add_argument("--workspace-root", type=Path,
+                        help="Ignored directory below backend build/ (default: build/padforge)")
     parser.add_argument("--jobs", type=int, choices=range(1, 9), default=2)
     parser.add_argument("--source-only", action="store_true", help="BlueWake: stop before compilation")
     parser.add_argument("--no-mods", action="store_true", help="BlueWake only")
@@ -255,9 +267,10 @@ def main(argv=None):
     try:
         repo, disc = validate(args)
         if args.action == "plan":
+            root = workspace_root(args, repo)
             print(json.dumps({"experimental": True, "target": "ios", "argv": command(
-                args, repo, disc, repo / "build/padforge/CONFIG/backend",
-                repo / "build/padforge/CONFIG/runs/ATTEMPT/personal.ipa")}, indent=2))
+                args, repo, disc, root / "CONFIG/backend",
+                root / "CONFIG/runs/ATTEMPT/personal.ipa")}, indent=2))
             return 0
         if platform.system() != "Darwin" or platform.machine() != "arm64":
             raise ValueError("This experimental runner currently supports Apple Silicon Macs only")

@@ -71,6 +71,27 @@ concurrent BlueWake build. Hardware acceptance remains deferred.
 
 ## Acceptance still open
 
+### Completed source-only integration
+
+On 28 September, one real run through PadForge used clean BlueWake revision
+`36b8488e7887e4f3ea4600c7d09790a24c241021`, the owner's archived disc and a
+separate ignored `build/padforge-source-check` workspace. It exited 0 with
+`source_only: true`, `status: completed` and `checkout_check: before-record-passed`.
+The checkout remained clean at the same revision. All seven backend stage
+start/completion pairs were relayed. Elapsed time was 11.87 seconds after disc
+hashing, using already established dependencies; this is not first-run timing.
+
+Translation reported 206 DOL chunks and 415 RELs. Composite validation passed
+748 chunks, 415 REL modules and 417 code ranges; digest
+`54f54434c3f9c899d43a96373dc0b4c1aed0e50db8b820b9698dfa76571a770a`
+matched the backend's verified tree. The private record is under configuration
+`c2422a29c4c4a907f4285098de0c553624955e45a6323e55f135a0a6da35ee16`,
+run `89c6fe7bfc864577a09e2b2c1336cb10`. Outputs stay local and ignored.
+Helper tools built as part of the backend; no game compile, IPA packaging,
+training, installation or device operation was performed by this integration.
+
+### Remaining checks
+
 1. BlueWake owner finishes local training and hardware acceptance, stabilizes a
    clean revision and reviews nested-process cancellation and cache reuse.
 2. Exercise that revision through PadForge with an unsupported disc, interrupted

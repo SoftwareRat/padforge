@@ -35,6 +35,8 @@ The current adapter produces only an iOS IPA. `--jobs` accepts 1–8, default 2.
 KartPad has no source-only or mod-selection option in its current CLI.
 
 Builds, logs and records stay under the game's ignored `build/padforge/`.
+Use `--workspace-root /path/to/game/build/separate-check` for a separate ignored
+workspace; it shares the same checkout-wide lock.
 Repeat the same command to reuse backend work. Ctrl-C requests cancellation
 and keeps existing work. PadForge allows one of its builds per game checkout;
 do not run the backend directly in parallel. Detailed logs may contain local
@@ -42,6 +44,11 @@ paths and should not be shared without review. Nothing is installed on a device
 or uploaded by PadForge. A personal IPA still needs separate signing/install.
 
 ## Status and next steps
+
+One real BlueWake source-only integration passed at reviewed revision
+`36b8488e7887e4f3ea4600c7d09790a24c241021`: extraction, translation and verified
+composite-source generation completed with progress and a successful record.
+This did not compile a game app, package an IPA or test a device.
 
 [Integration notes](docs/INTEGRATION.md) describe the exact backend commands,
 progress and cancellation limits, provenance gaps and remaining acceptance
