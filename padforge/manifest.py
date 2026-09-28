@@ -69,9 +69,24 @@ def validate_manifest(data):
             _require(host in HOSTS, f"{where}.hosts has unknown host {host}")
             _require(state in HOST_STATES, f"{where}.hosts.{host} must be one of {sorted(HOST_STATES)}")
         runnable = any(state in RUNNABLE_STATES for state in hosts.values())
+        _require(not ("command" in target and "steps" in target), f"{where} uses command or steps, not both")
         if "command" in target:
             _argv(target["command"], f"{where}.command")
-        _require(not runnable or "command" in target, f"{where} has a runnable host but no command")
+        if "steps" in target:
+            steps = target["steps"]
+            _require(isinstance(steps, list) and steps, f"{where}.steps must be a non-empty list")
+            names = []
+            for index, step in enumerate(steps):
+                _require(isinstance(step, dict) and isinstance(step.get("stage"), str) and step["stage"],
+                         f"{where}.steps[{index}] needs a stage name")
+                _argv(step.get("command"), f"{where}.steps[{index}].command")
+                _require(step["command"], f"{where}.steps[{index}].command must not be empty")
+                names.append(step["stage"])
+            _require(len(names) == len(set(names)), f"{where}.steps stage names must be unique")
+            _require(not target.get("modes") and not target.get("options"),
+                     f"{where}: steps targets do not support modes or options yet")
+        _require(not runnable or "command" in target or "steps" in target,
+                 f"{where} has a runnable host but no command or steps")
         modes = target.get("modes", {"full": []})
         _require(isinstance(modes, dict) and "full" in modes, f"{where}.modes must include full")
         for mode, extra in modes.items():

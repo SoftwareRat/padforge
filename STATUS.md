@@ -36,6 +36,27 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 23:49 Environment: BlueWake cold trained build compiling (other agent, read-only
   for this run); 71 GB free; load ~230. Active agents: BlueWake, YomiBoy.
 - 23:55 PadForge PR #1 merged to `main` (`5361f33`); 26 tests pass.
+- 00:10 Decisions + feasibility in `docs/DECISIONS.md` (iPhone module links
+  without Apple SDK for one real chunk; Android host-neutral is conditional).
+  Core on main `70de086`: manifests, catalog, list/doctor/check-manifest/audit,
+  keyless gate (byte-identical results to the private gate), automatic gate on
+  every personal output.
+- 00:15 Owner decision: KartPad v0.1.0 and v0.2.0-preview.1 releases are still
+  public and their tag source archives contain both Wii common keys (not acted on).
+- 00:20 KartPad draft PR #336: build-it-yourself docs, retired links, common-key
+  note, Builder stage events, padforge.json. Source gate FAILS on existing
+  fixtures; `tests/fixtures/rel_report/function.cpp` shares all 3 labels and 11
+  non-trivial lines with the translated game function (owner review).
+- 00:25 `c21c595`: in-app inputs (no --disc), generic IPA check, MaskPad entry.
+- 00:30 GoldenPad PR #38 merged (draft padforge.json, all targets planned).
+  Sweep of 23 repos; retired-link PRs merged for HarkinianPad #27, SpaghettiPad
+  #17, BrawlerPad #6, BearBirdPad #13, VaultPad #3; open for SunPad #49,
+  MeleePad #34, AnnePad #7, CTRPad #40, GalaxyPad #15, SnapPad #7 (see Notion).
+- 00:35 MaskPad fresh build through PadForge failed at configure on Xcode 27
+  (upstream caches a 10.15 deployment target; Xcode 27 minimum iOS is 15.0).
+  Fixed on the MaskPad branch; rebuild running.
+- 00:45 HarkinianPad fork → patches: three patches against upstream Shipwright,
+  libultraship and ZAPDTR reproduce the fork trees exactly; gate PASS.
 
 ## Repo queue
 

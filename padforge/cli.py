@@ -71,7 +71,7 @@ def selection(args, repo):
     target = manifest["targets"].get(name)
     if target is None:
         raise ValueError(f"{manifest['name']} does not declare a {name} target")
-    if "command" not in target:
+    if "command" not in target and "steps" not in target:
         raise ValueError(f"{manifest['name']} {name} builds are planned, not implemented")
     return manifest, name, target
 
@@ -94,9 +94,11 @@ def validate(args):
     elif getattr(args, "disc", None) is not None:
         raise ValueError(f"{manifest['name']} does not read game files during the build; "
                          "import them in the app instead of passing --disc")
-    for item in target["command"]:
-        if item.startswith("{repo}/") and not (repo / item[len("{repo}/"):]).is_file():
-            raise ValueError("Selected checkout does not contain the game's entrypoint")
+    templates = [target["command"]] if "command" in target else [step["command"] for step in target["steps"]]
+    for template in templates:
+        for item in template:
+            if item.startswith("{repo}/") and not (repo / item[len("{repo}/"):]).is_file():
+                raise ValueError(f"Selected checkout does not contain {item[len('{repo}/'):]}")
     if args.source_only and "source-only" not in target.get("modes", {}):
         raise ValueError(f"{manifest['name']} does not expose source-only builds through its CLI")
     if args.no_mods and "no-mods" not in target.get("options", {}):
@@ -108,6 +110,8 @@ def command(args, repo, disc, work, output):
     _manifest, _name, target = selection(args, repo)
     values = {"repo": str(repo), "disc": str(disc) if disc else "", "work": str(work),
               "output": str(output), "jobs": str(args.jobs)}
+    if "steps" in target:
+        return [expand(step["command"], values) for step in target["steps"]]
     mode = "source-only" if args.source_only else "full"
     argv = expand(target["command"], values) + expand(target.get("modes", {}).get(mode, []), values)
     if args.no_mods:
@@ -115,7 +119,7 @@ def command(args, repo, disc, work, output):
     return argv
 
 
-def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
+def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append=False):
     """Relay new backend events; retain complete output in a private local log."""
     offset = event_path.stat().st_size if event_path.exists() else 0
     pending = b""
@@ -155,7 +159,7 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
     previous = signal.signal(signal.SIGTERM, interrupt)
     process = None
     try:
-        with log_path.open("wb") as log:
+        with log_path.open("ab" if append else "wb") as log:
             if before_spawn is not None:
                 before_spawn()
             process = subprocess.Popen(argv, cwd=cwd, stdout=log,
@@ -195,6 +199,23 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
         return 130, True
     finally:
         signal.signal(signal.SIGTERM, previous)
+
+
+def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each):
+    """Run a manifest's ordered steps; PadForge emits the stage events itself."""
+    event_path.parent.mkdir(parents=True, exist_ok=True)
+    code, cancelled = 0, False
+    for step, argv in zip(steps, argvs):
+        stage = step["stage"]
+        emit("backend_event", backend={"schema_version": 1, "event": "stage_started", "stage": stage})
+        code, cancelled = run_process(argv, cwd, log_path, event_path, emit,
+                                      before_spawn=before_each, append=True)
+        if cancelled or code != 0:
+            emit("backend_event", backend={"schema_version": 1, "stage": stage, "exit_code": code,
+                                           "event": "stage_cancelled" if cancelled else "stage_failed"})
+            break
+        emit("backend_event", backend={"schema_version": 1, "event": "stage_completed", "stage": stage})
+    return code, cancelled
 
 
 def workspace_root(args, repo):
@@ -276,9 +297,14 @@ def execute(args, repo, disc):
             record["checkout_check"] = phase + "-passed"
 
         try:
-            code, cancelled = run_process(command(args, repo, disc, work, output), repo,
-                                          attempt / "backend.log", work / "logs/progress.jsonl", emit,
-                                          before_spawn=lambda: recheck("before-launch"))
+            argv = command(args, repo, disc, work, output)
+            events = work / "logs/progress.jsonl"
+            if "steps" in target:
+                code, cancelled = run_steps(target["steps"], argv, repo, attempt / "backend.log",
+                                            events, emit, lambda: recheck("before-launch"))
+            else:
+                code, cancelled = run_process(argv, repo, attempt / "backend.log", events, emit,
+                                              before_spawn=lambda: recheck("before-launch"))
             recheck("after-exit")
             if code == 0 and not args.source_only:
                 if not output.is_file() or output.stat().st_size == 0:

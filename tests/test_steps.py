@@ -1,0 +1,97 @@
+"""Manifests that list a game's existing scripts as ordered steps."""
+import argparse
+import copy
+import json
+from pathlib import Path
+import shlex
+import subprocess
+import tempfile
+import unittest
+
+from padforge.cli import execute, validate
+from padforge.manifest import validate_manifest
+from fixtures import entries, write_ipa
+
+STEPS = {
+    "schema_version": 1, "id": "starshippad", "name": "Synthetic", "game": "Synthetic",
+    "kind": "decomp-patches", "status": "draft-untested",
+    "inputs": [{"type": "n64-rom", "when": "in-app"}],
+    "targets": {"ios": {"hosts": {"macos-arm64": "experimental"}, "output": "ipa", "check": "ipa",
+                        "steps": [
+                            {"stage": "dependencies", "command": ["/bin/bash", "{repo}/scripts/fetch.sh"]},
+                            {"stage": "package", "command": ["/bin/bash", "{repo}/scripts/package.sh", "{output}"]}]}},
+    "publication": {"public_binaries": False},
+}
+
+
+class StepsTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="padforge steps ")
+        self.addCleanup(self.temp.cleanup)
+        root = Path(self.temp.name).resolve()
+        self.repo = root / "backend"
+        (self.repo / "scripts").mkdir(parents=True)
+        ipa = root / "synthetic.ipa"
+        members = entries()
+        members.pop("KartPadBuilderProvenance.json")
+        write_ipa(ipa, members)
+        self.marker = root / "fetched"
+        (self.repo / ".gitignore").write_text("build/\n")
+        (self.repo / "scripts/fetch.sh").write_text("touch %s\n" % shlex.quote(str(self.marker)))
+        (self.repo / "scripts/package.sh").write_text("test -f %s && cp %s \"$1\"\n"
+                                                      % (shlex.quote(str(self.marker)), shlex.quote(str(ipa))))
+        self.commit(STEPS)
+
+    def commit(self, manifest):
+        (self.repo / "padforge.json").write_text(json.dumps(manifest))
+        if not (self.repo / ".git").exists():
+            for command in (["init", "-q"], ["config", "user.email", "t@example.invalid"], ["config", "user.name", "T"]):
+                subprocess.run(["git", "-C", str(self.repo), *command], check=True)
+        subprocess.run(["git", "-C", str(self.repo), "add", "."], check=True)
+        subprocess.run(["git", "-C", str(self.repo), "commit", "-qm", "synthetic"], check=True)
+        revision = subprocess.check_output(["git", "-C", str(self.repo), "rev-parse", "HEAD"], text=True).strip()
+        self.args = argparse.Namespace(game="starshippad", repo=self.repo, disc=None, revision=revision,
+                                       source_only=False, no_mods=False, jobs=2)
+
+    def records(self):
+        path = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        events = [json.loads(line) for line in (path.parent / "progress.jsonl").read_text().splitlines()]
+        return json.loads(path.read_text()), [(e["backend"]["event"], e["backend"]["stage"])
+                                               for e in events if e["event"] == "backend_event"]
+
+    def test_steps_run_in_order_with_stage_events(self):
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 0)
+        record, stages = self.records()
+        self.assertEqual(record["status"], "completed")
+        self.assertEqual(stages, [("stage_started", "dependencies"), ("stage_completed", "dependencies"),
+                                  ("stage_started", "package"), ("stage_completed", "package")])
+
+    def test_failed_step_stops_the_build(self):
+        (self.repo / "scripts/fetch.sh").write_text("exit 7\n")
+        self.commit(STEPS)
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 7)
+        record, stages = self.records()
+        self.assertEqual(record["status"], "failed")
+        self.assertEqual(stages, [("stage_started", "dependencies"), ("stage_failed", "dependencies")])
+
+    def test_missing_step_script_and_invalid_steps_are_rejected(self):
+        broken = copy.deepcopy(STEPS)
+        broken["targets"]["ios"]["steps"][1]["command"][1] = "{repo}/scripts/missing.sh"
+        self.commit(broken)
+        with self.assertRaisesRegex(ValueError, "scripts/missing.sh"):
+            validate(self.args)
+        duplicate = copy.deepcopy(STEPS)
+        duplicate["targets"]["ios"]["steps"][1]["stage"] = "dependencies"
+        with self.assertRaisesRegex(ValueError, "unique"):
+            validate_manifest(duplicate)
+        both = copy.deepcopy(STEPS)
+        both["targets"]["ios"]["command"] = ["/bin/true"]
+        with self.assertRaisesRegex(ValueError, "not both"):
+            validate_manifest(both)
+
+
+if __name__ == "__main__":
+    unittest.main()
+
