@@ -120,6 +120,19 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 03:27 SnapPad: iOS configure fails on Xcode 27 (SDL2 try-compiles cannot find
   AvailabilityMacros.h) — needs investigation. DinoPad manifest rewritten to the
   README order; re-queued before SunPad.
+- 03:37 VaultPad complete build on #6 (9m17s) → L4 on branch (gate PASS on the
+  personal output; decompilation-style source).
+- 03:57 AnnePad on #7: dependencies, ROM preparation, translation and the iOS
+  device build all succeeded (20m25s), then packaging stopped on a missing
+  macOS host tool (`build-macos/file_to_c`). The manifest now builds the Mac
+  host tools first (#7, `7836a74`); re-queued.
+- 04:08 KartPad Mac target on #336: compiled, linked, signed and packaged
+  `KartPad.app`, then the package audit failed. Cause: the packager still
+  stamped 0.4.17/build 39 while the audit expects the public 0.4.22/build 43.
+  Packager defaults updated (`cbf6818`); a copy of that app re-stamped to
+  0.4.22/43 with its original Bluetooth entitlement passes the full audit.
+  Clean rebuild queued last.
+- 04:10 Queue: DinoPad (#7) → SunPad (#49) → AnnePad (#7) → KartPad Mac (#336).
 
 ## Level snapshot (01:00)
 
