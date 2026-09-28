@@ -201,6 +201,9 @@ tracker; this file mirrors progress so work can resume after interruption.
   had cached the failed checks from the broken Xcode 27 configure (a fresh
   folder configures fine); stale folder renamed aside. Queue: AnnePad clean
   rerun (running) → DinoPad → SnapPad.
+- 06:02 **AnnePad complete personal build through PadForge** (#7 at
+  `89208c4`): 26m07s, exit 0, all stages including packaging and export,
+  84.7 MB IPA, gate FAIL as intended → **L4 on branch**. DinoPad started.
 
 ## Level snapshot (01:00)
 
