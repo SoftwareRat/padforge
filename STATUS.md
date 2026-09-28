@@ -99,6 +99,14 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 02:37 BananaPad failed: PaperBoat's Torch submodule repo (JeodC/Torch-LH) was
   deleted upstream; pinned commit still in JeodC/Torch. Draft PaperBoat#1
   (URL only). Blocks fresh clones of PaperPad, BananaPad, SnapPad, DinoPad.
+- 02:54–03:10 Fresh-build failures, all diagnosed and fixed on PR branches:
+  AnnePad release audit list stale since 5 Aug (fix on #7, verified on the
+  built core); SnapPad manifest missed host tools (#7); DinoPad manifest ran its
+  safety check too early (#7); BarrelPad `clone-refs.sh` breaks under macOS
+  bash 3.2 — the only bash on stock macOS (draft #15); VaultPad host build uses
+  macOS 10.13, Xcode 27 needs 12.0+ (draft #6). All re-queued.
+- Queue chain: DevilTouch (#6) → KartPad Mac target (#336) → AnnePad (#7) →
+  SunPad (#49) → BarrelPad (#15), SnapPad (#7), DinoPad (#7) → VaultPad (#6).
 
 ## Level snapshot (01:00)
 
