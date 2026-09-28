@@ -175,6 +175,12 @@ tracker; this file mirrors progress so work can resume after interruption.
   confirms bundled). Old iOS core folder renamed aside. Re-queued after GoldenPad.
   PadForge lesson: builds should not depend on what Homebrew has installed;
   worth a doctor warning later.
+- 05:17 AnnePad on #7 (33m42s): every stage ran through PadForge and AnnePad's
+  own app audit passed; the packager then refused because it only writes under
+  `artifacts/`. Manifest fixed (`89208c4`: package there, then export). The
+  corrected packaging run on that build produced an 84.7 MB personal IPA; gate
+  FAIL as intended → **L3** (L4 needs a clean rerun). AnnePad's iOS step runs
+  ninja with no job limit (~38 compilers). KartPad Mac build started 05:17.
 
 ## Level snapshot (01:00)
 
