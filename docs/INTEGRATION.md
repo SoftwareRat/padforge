@@ -18,11 +18,28 @@ The caller must trust that checkout and the tools it executes. Ignored dependenc
 trees are still the backend's responsibility. PadForge never fetches a backend.
 
 An attempt gets a private output directory under the backend's ignored
-`build/padforge/`. Configuration includes the complete disc hash, backend commit,
-PadForge version and selected options. Repeat the same command to reuse the
-backend work directory; a new attempt log and output path prevent stale output
+`build/padforge/`. The reusable workspace key includes a workspace-schema version,
+game, complete disc hash, backend commit, target and mod selection. Job count and
+source-only/full mode are attempt controls: changing them reuses the same backend
+work directory. The complete options, PadForge version and workspace identity/key
+remain recorded in every attempt. A new attempt log and output path prevent stale output
 from being mistaken for a new successful build. The backend validates its cache.
 PadForge does not certify those validations or skip stages itself.
+
+Revision policy is deliberately conservative: a new backend commit selects a new
+workspace, including documentation-only commits. Cross-revision reuse requires
+adapter-specific proof that all affected outputs are invalidated correctly; the
+wrapper does not guess which files are build inputs or use a docs-path exclusion
+list. This remains a performance limitation for ordinary app updates. Changes to
+disc, target or mods also select separate workspaces. Workspace schema changes
+can intentionally invalidate reuse without coupling it to every PadForge version.
+
+The revised key does not automatically migrate or delete workspaces made with the
+old all-options key (including the recorded source-only integration below). Their
+private outputs remain preserved. Reuse applies to attempts made with the new key
+and the same workspace root. No live BlueWake build was started for this change.
+Synthetic tests prove source-preflight/full reuse, changed-jobs reuse with separate
+records, and revision isolation; real-game timing savings have not been measured.
 
 The checkout-wide advisory lock coordinates PadForge processes, including
 shared dependency caches. It cannot stop builds started directly or by another

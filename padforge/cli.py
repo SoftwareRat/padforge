@@ -196,7 +196,12 @@ def execute(args, repo, disc):
                     "mods": (not args.no_mods) if args.game == "bluewake" else "backend-default",
                     "source_only": args.source_only,
                     "jobs": args.jobs}
-        key = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+        # Invocation controls belong to the attempt, not to reusable build inputs.
+        # Keep revisions isolated until every adapter proves cross-revision invalidation.
+        workspace_identity = {name: identity[name] for name in
+                              ("game", "revision", "disc_sha256", "target", "mods")}
+        workspace_identity["workspace_schema"] = 1
+        key = hashlib.sha256(json.dumps(workspace_identity, sort_keys=True).encode()).hexdigest()
         work = root / key / "backend"
         attempt = root / key / "runs" / uuid.uuid4().hex
         attempt.mkdir(parents=True, mode=0o700)
@@ -215,7 +220,8 @@ def execute(args, repo, disc):
             print(f"[{record['build_elapsed_seconds']}s] {event}: "
                   f"{backend.get('stage', '')} {backend.get('event', '')}{counts}".strip(), flush=True)
 
-        record = dict(identity, status="running", publication="personal-only",
+        record = dict(identity, workspace_key=key, workspace_identity=workspace_identity,
+                      status="running", publication="personal-only",
                       backend_validation="not-established-by-runner")
         atomic_json(attempt / "record.json", record)
         emit("build_started")

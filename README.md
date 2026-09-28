@@ -37,7 +37,11 @@ KartPad has no source-only or mod-selection option in its current CLI.
 Builds, logs and records stay under the game's ignored `build/padforge/`.
 Use `--workspace-root /path/to/game/build/separate-check` for a separate ignored
 workspace; it shares the same checkout-wide lock.
-Repeat the same command to reuse backend work. Ctrl-C requests cancellation
+Preflight and full builds share backend work, as do runs with different job counts.
+Each attempt retains its own options, log and output. Changing the backend revision
+(even docs-only), disc, target or mods selects a separate workspace. Old workspaces
+from earlier PadForge key formats remain preserved but are not automatically reused.
+Ctrl-C requests cancellation
 and keeps existing work. PadForge allows one of its builds per game checkout;
 do not run the backend directly in parallel. Detailed logs may contain local
 paths and should not be shared without review. Nothing is installed on a device

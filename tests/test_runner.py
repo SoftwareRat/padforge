@@ -108,6 +108,63 @@ exit 2
         record = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
         self.assertEqual(json.loads(record.read_text())["status"], "failed")
 
+    def test_changed_jobs_reuses_workspace_but_preserves_attempt_options(self):
+        for jobs in (2, 8):
+            self.args.jobs = jobs
+            self.assertEqual(execute(self.args, self.repo, self.disc), 0)
+        records = list((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        data = [json.loads(path.read_text()) for path in records]
+        self.assertEqual({item["jobs"] for item in data}, {2, 8})
+        self.assertEqual(len({item["workspace_key"] for item in data}), 1)
+        self.assertEqual(len({path.parents[2] for path in records}), 1)
+
+    def test_source_preflight_then_full_build_reuses_backend_outputs(self):
+        self.args.game = "bluewake"
+        script = self.repo / "scripts/builder/build.sh"
+        script.parent.mkdir()
+        script.write_text('''#!/bin/bash
+set -eu
+out=""; ipa=""; source_only=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --out) out=$2; shift 2;;
+    --ipa) ipa=$2; shift 2;;
+    --source-only) source_only=1; shift;;
+    *) shift;;
+  esac
+done
+mkdir -p "$out"
+if [ "$source_only" = 1 ]; then
+  printf 'synthetic prepared source' > "$out/source-ready"
+else
+  test -f "$out/source-ready" || exit 9
+  cp FIXTURE "$ipa"
+fi
+'''.replace("FIXTURE", shlex.quote(str(self.ipa))))
+        self.git("add", "scripts/builder/build.sh")
+        self.git("commit", "-qm", "Synthetic two-step backend")
+        self.args.revision = self.git("rev-parse", "HEAD")
+        write_ipa(self.ipa, entries("bluewake", revision=self.args.revision))
+        for source_only in (True, False):
+            self.args.source_only = source_only
+            self.assertEqual(execute(self.args, self.repo, self.disc), 0)
+        records = list((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        data = [json.loads(path.read_text()) for path in records]
+        self.assertEqual({item["source_only"] for item in data}, {True, False})
+        self.assertEqual(len({item["workspace_key"] for item in data}), 1)
+        self.assertEqual(len({path.parents[2] for path in records}), 1)
+        self.assertEqual(sum("package_validation" in item for item in data), 1)
+
+    def test_new_revision_stays_isolated_even_for_docs_only_change(self):
+        self.assertEqual(execute(self.args, self.repo, self.disc), 0)
+        (self.repo / "README.md").write_text("Documentation-only revision")
+        self.git("add", "README.md")
+        self.git("commit", "-qm", "Docs update")
+        self.args.revision = self.git("rev-parse", "HEAD")
+        self.assertEqual(execute(self.args, self.repo, self.disc), 0)
+        records = list((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        self.assertEqual(len({path.parents[2] for path in records}), 2)
+
     def test_custom_workspace_stays_ignored_and_uses_shared_lock(self):
         self.args.workspace_root = self.repo / "build/separate-check"
         self.assertEqual(execute(self.args, self.repo, self.disc), 0)
