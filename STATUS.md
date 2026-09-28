@@ -87,6 +87,15 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 02:10 `padforge history --repo` added. Clean engines' public IPAs all pass
   the gate.
 - 02:14 SpaghettiPad complete build from main (19m55s) → L4; manifest experimental.
+- 02:26 BearBirdPad complete build from main with the owner's ROM (11m48s) → L4.
+- 02:28 BellPad complete build from main (1m27s) → L4. Its personal IPA *passes*
+  the gate: decompilation code has named functions. Recorded as a gate limit.
+- 02:28 Early failures fixed and re-queued: DevilTouch (Xcode 27 target; draft
+  #6), BarrelPad (manifest used macOS /bin/bash 3.2; #14 merged), VaultPad
+  (empty submodule in worktrees; #5 merged).
+- 02:33 BallPad complete build from main (5m02s) → L4 (gate PASS, decompilation).
+  Manifests marked experimental: BearBirdPad #15, BellPad #16, BallPad #8.
+- 02:30 KartPad build-only Mac target added to #336 (queued for a real build).
 
 ## Level snapshot (01:00)
 
