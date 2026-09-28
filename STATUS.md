@@ -96,6 +96,9 @@ tracker; this file mirrors progress so work can resume after interruption.
 - 02:33 BallPad complete build from main (5m02s) → L4 (gate PASS, decompilation).
   Manifests marked experimental: BearBirdPad #15, BellPad #16, BallPad #8.
 - 02:30 KartPad build-only Mac target added to #336 (queued for a real build).
+- 02:37 BananaPad failed: PaperBoat's Torch submodule repo (JeodC/Torch-LH) was
+  deleted upstream; pinned commit still in JeodC/Torch. Draft PaperBoat#1
+  (URL only). Blocks fresh clones of PaperPad, BananaPad, SnapPad, DinoPad.
 
 ## Level snapshot (01:00)
 
