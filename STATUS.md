@@ -146,6 +146,19 @@ tracker; this file mirrors progress so work can resume after interruption.
   BearBirdPad, BananaPad and GoldenPad already carry an equivalent fix.
 - 04:42 KartPad Mac runner had died with its launching shell; folded into a new
   queue: SunPad (running) → AnnePad → KartPad Mac → DinoPad → SnapPad.
+- 04:30 EctoPad (never released, source passes): gate rule merged (#4) → L1.
+- 04:30 SunPad passed the step that failed before (Dolphin tools on the macOS
+  27 SDK); now translating. Its module build runs `ninja -j 16` internally,
+  ignoring the PadForge job cap (noted, harmless tonight).
+- 04:35 Clean engines: full git history (all refs) passes the gate for KidPad,
+  CaesarPad, EmeraldTablet, RAtouch and DaggerPad; PeonPad passes after
+  decompressing its upstream .gz/.bz2 fixtures. Scanner positive control:
+  KartPad's flagged fixture fails. Gate rule merged for EmeraldTablet (#1) and
+  DaggerPad (#5); PeonPad #8 left open (tree fails closed on the compressed
+  fixtures). **Not touched:** CaesarPad (CI uploads IPA artifacts on PRs and
+  pushes), KidPad (release-public job on push to main), RAtouch (inherited
+  workflows run on any push and include a "latest" development-release job).
+  Pushing there could publish, so the rule is an owner item.
 
 ## Level snapshot (01:00)
 
