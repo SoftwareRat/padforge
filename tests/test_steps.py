@@ -91,7 +91,23 @@ class StepsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not both"):
             validate_manifest(both)
 
+    def test_step_environment_receives_placeholders(self):
+        manifest = copy.deepcopy(STEPS)
+        manifest["targets"]["ios"]["steps"][1] = {
+            "stage": "package", "command": ["/bin/bash", "{repo}/scripts/package-env.sh"],
+            "env": {"SYNTHETIC_OUTPUT": "{output}"}}
+        source = shlex.quote(str(Path(self.temp.name).resolve() / "synthetic.ipa"))
+        (self.repo / "scripts/package-env.sh").write_text(f'cp {source} "$SYNTHETIC_OUTPUT"\n')
+        self.commit(manifest)
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 0)
+        record, _stages = self.records()
+        self.assertEqual(record["status"], "completed")
+        bad = copy.deepcopy(manifest)
+        bad["targets"]["ios"]["steps"][1]["env"] = {"lower": "x"}
+        with self.assertRaisesRegex(ValueError, "UPPER_CASE"):
+            validate_manifest(bad)
+
 
 if __name__ == "__main__":
     unittest.main()
-

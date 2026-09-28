@@ -120,7 +120,7 @@ def command(args, repo, disc, work, output):
     return argv
 
 
-def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append=False):
+def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append=False, env=None):
     """Relay new backend events; retain complete output in a private local log."""
     offset = event_path.stat().st_size if event_path.exists() else 0
     pending = b""
@@ -163,7 +163,7 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append
         with log_path.open("ab" if append else "wb") as log:
             if before_spawn is not None:
                 before_spawn()
-            process = subprocess.Popen(argv, cwd=cwd, stdout=log,
+            process = subprocess.Popen(argv, cwd=cwd, stdout=log, env=env,
                                        stderr=subprocess.STDOUT, start_new_session=True)
             last_progress = time.monotonic()
             while process.poll() is None:
@@ -202,15 +202,19 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append
         signal.signal(signal.SIGTERM, previous)
 
 
-def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each):
+def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values=None):
     """Run a manifest's ordered steps; PadForge emits the stage events itself."""
     event_path.parent.mkdir(parents=True, exist_ok=True)
     code, cancelled = 0, False
     for step, argv in zip(steps, argvs):
         stage = step["stage"]
+        env = None
+        if step.get("env"):
+            env = dict(os.environ)
+            env.update({key: expand([value], values or {})[0] for key, value in step["env"].items()})
         emit("backend_event", backend={"schema_version": 1, "event": "stage_started", "stage": stage})
         code, cancelled = run_process(argv, cwd, log_path, event_path, emit,
-                                      before_spawn=before_each, append=True)
+                                      before_spawn=before_each, append=True, env=env)
         if cancelled or code != 0:
             emit("backend_event", backend={"schema_version": 1, "stage": stage, "exit_code": code,
                                            "event": "stage_cancelled" if cancelled else "stage_failed"})
@@ -302,7 +306,10 @@ def execute(args, repo, disc):
             events = work / "logs/progress.jsonl"
             if "steps" in target:
                 code, cancelled = run_steps(target["steps"], argv, repo, attempt / "backend.log",
-                                            events, emit, lambda: recheck("before-launch"))
+                                            events, emit, lambda: recheck("before-launch"),
+                                            values={"repo": str(repo), "disc": str(disc) if disc else "",
+                                                    "work": str(work), "output": str(output),
+                                                    "jobs": str(args.jobs)})
             else:
                 code, cancelled = run_process(argv, repo, attempt / "backend.log", events, emit,
                                               before_spawn=lambda: recheck("before-launch"))

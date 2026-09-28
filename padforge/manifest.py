@@ -81,6 +81,10 @@ def validate_manifest(data):
                          f"{where}.steps[{index}] needs a stage name")
                 _argv(step.get("command"), f"{where}.steps[{index}].command")
                 _require(step["command"], f"{where}.steps[{index}].command must not be empty")
+                env = step.get("env", {})
+                _require(isinstance(env, dict) and all(re.fullmatch(r"[A-Z][A-Z0-9_]*", key) for key in env),
+                         f"{where}.steps[{index}].env must map UPPER_CASE names to values")
+                _argv(list(env.values()), f"{where}.steps[{index}].env")
                 names.append(step["stage"])
             _require(len(names) == len(set(names)), f"{where}.steps stage names must be unique")
             _require(not target.get("modes") and not target.get("options"),
