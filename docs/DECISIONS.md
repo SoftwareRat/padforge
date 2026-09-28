@@ -89,6 +89,13 @@ SunPad) already separate the game module from the app. For sideloading, the
 module would ship inside the IPA's `Frameworks/` so the signing tool re-signs
 it with the app.
 
+MeleePad goes further: its retired Preview 7 shipped an unsigned *module-free*
+IPA shell, with the game module generated locally from the player's disc
+(`docs/FAQ.md`). The audit recorded that shell as publishable once Dolphin's
+common keys are removed. So three ports (BlueWake, SunPad, MeleePad) already
+separate the app from the game module, which is the design a runtime-only
+public app would need.
+
 ## S2. Android builds from Linux/Windows: conditional yes
 
 KartPad's Android build reuses the same translation output as iOS and uses
