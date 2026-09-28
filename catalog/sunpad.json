@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "sunpad",
+  "repo_url": "https://github.com/chrissotraidis/sunpad",
+  "reviewed_revision": null,
+  "notes": "padforge.json is on open PR #49 until merged. Game module is a separate dylib.",
+  "manifest": null
+}

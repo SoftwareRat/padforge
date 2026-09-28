@@ -81,6 +81,14 @@ today: its translated C++ is linked statically into the app
 (`add_library(kartpad_g7_translated STATIC)`), so it needs a module refactor
 first. Publishing a runtime-only IPA/APK is an owner decision.
 
+Later the same night: SunPad already works this way in development. Its app
+loads `gGMSE01_recomp.dylib` from the app container, generated locally by
+`scripts/ios-build-core-device.sh` and provisioned separately from the app
+(`docs/BUILDING.md`). So two of the static-recompilation ports (BlueWake,
+SunPad) already separate the game module from the app. For sideloading, the
+module would ship inside the IPA's `Frameworks/` so the signing tool re-signs
+it with the app.
+
 ## S2. Android builds from Linux/Windows: conditional yes
 
 KartPad's Android build reuses the same translation output as iOS and uses
