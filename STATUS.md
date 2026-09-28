@@ -228,6 +228,11 @@ tracker; this file mirrors progress so work can resume after interruption.
   7.7 MB IPA, gate FAIL as intended. Formal level stays L0 (source-gate test
   stub policy). Finding: SnapPad's packager prints "Public unsigned SnapPad IPA
   audit passed" for this personal IPA — misleading label. DinoPad started.
+- 06:18 DinoPad (#7 at `b8f864a`): Xcode 27 configure passes and the base app
+  compiles ("unsigned iOS base app ready"), then the device safety audit fails:
+  the compiled-dependency (license notice) inventory only defines the restored
+  edition's build folder. Adding a base target changes license-notice data, so
+  it is left for owner review → **L3**. Queue finished; no runners remain.
 
 ## Level snapshot (01:00)
 
