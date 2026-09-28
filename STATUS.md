@@ -195,6 +195,12 @@ tracker; this file mirrors progress so work can resume after interruption.
   package audit passed, 26.8 MB IPA, gate FAIL as intended; check-repository
   passes → **L4 on branch** (script fixes, so #49 is the owner's to merge).
   DinoPad (#7) build started.
+- 05:34 DinoPad stopped in 10 s: its safety check pins a checksum of the whole
+  patch set, which the new RT64 patch changed. Lock and docs updated
+  (`6ed8618`); safety check clean. SnapPad stopped in 20 s: its build folder
+  had cached the failed checks from the broken Xcode 27 configure (a fresh
+  folder configures fine); stale folder renamed aside. Queue: AnnePad clean
+  rerun (running) → DinoPad → SnapPad.
 
 ## Level snapshot (01:00)
 
