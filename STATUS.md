@@ -280,8 +280,9 @@ PR only)  12. Clean engines  13. Supporting repos (status only)
 ## Follow-ups for PadForge itself
 
 - Several repo scripts ignore the job cap (SunPad's module build `-j16`,
-  AnnePad's iOS ninja unlimited). Export `CMAKE_BUILD_PARALLEL_LEVEL` and
-  document `{jobs}` for manifests.
+  AnnePad's iOS ninja unlimited). Done 06:30: every backend now gets
+  `CMAKE_BUILD_PARALLEL_LEVEL` = `--jobs` (test added; 49 pass); scripts
+  calling ninja/make/xcodebuild directly still need `{jobs}`.
 - Host leaks: Homebrew libraries can be picked up by iOS builds (SunPad's
   minizip-ng). `padforge doctor` could warn about known offenders.
 - Detached-HEAD pushes: queue runners detach worktrees; commit on the branch.

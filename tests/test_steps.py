@@ -108,6 +108,16 @@ class StepsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "UPPER_CASE"):
             validate_manifest(bad)
 
+    def test_steps_receive_the_job_cap(self):
+        seen = Path(self.temp.name).resolve() / "jobs"
+        (self.repo / "scripts/fetch.sh").write_text(
+            'printf %%s "$CMAKE_BUILD_PARALLEL_LEVEL" > %s\ntouch %s\n'
+            % (shlex.quote(str(seen)), shlex.quote(str(self.marker))))
+        self.commit(STEPS)
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 0)
+        self.assertEqual(seen.read_text(), "2")
+
     def test_history_summarizes_records(self):
         repo, disc = validate(self.args)
         self.assertEqual(execute(self.args, repo, disc), 0)

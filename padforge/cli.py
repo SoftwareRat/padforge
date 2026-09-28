@@ -211,9 +211,8 @@ def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values
     code, cancelled = 0, False
     for step, argv in zip(steps, argvs):
         stage = step["stage"]
-        env = None
+        env = backend_env((values or {}).get("jobs"))
         if step.get("env"):
-            env = dict(os.environ)
             env.update({key: expand([value], values or {})[0] for key, value in step["env"].items()})
         emit("backend_event", backend={"schema_version": 1, "event": "stage_started", "stage": stage})
         code, cancelled = run_process(argv, cwd, log_path, event_path, emit,
@@ -224,6 +223,14 @@ def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values
             break
         emit("backend_event", backend={"schema_version": 1, "event": "stage_completed", "stage": stage})
     return code, cancelled
+
+
+def backend_env(jobs):
+    """Environment for backend processes: pass the job cap to `cmake --build`."""
+    env = dict(os.environ)
+    if jobs:
+        env.setdefault("CMAKE_BUILD_PARALLEL_LEVEL", str(jobs))
+    return env
 
 
 def workspace_root(args, repo):
@@ -315,7 +322,8 @@ def execute(args, repo, disc):
                                                     "jobs": str(args.jobs)})
             else:
                 code, cancelled = run_process(argv, repo, attempt / "backend.log", events, emit,
-                                              before_spawn=lambda: recheck("before-launch"))
+                                              before_spawn=lambda: recheck("before-launch"),
+                                              env=backend_env(args.jobs))
             recheck("after-exit")
             if code == 0 and not args.source_only:
                 if not output.is_file() or output.stat().st_size == 0:

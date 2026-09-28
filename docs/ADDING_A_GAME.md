@@ -39,6 +39,10 @@ as a stage, shows progress, stops at the first failure and audits the result.
   `{output}`, `{jobs}`. Values never become shell text. A step may also set
   `"env": {"NAME": "{output}"}` when a script reads its output path from the
   environment.
+- **Job cap:** every step runs with `CMAKE_BUILD_PARALLEL_LEVEL` set to
+  `--jobs`, which `cmake --build` honors. Scripts that call `ninja`, `make`
+  or `xcodebuild` directly should pass `{jobs}` themselves (SunPad and AnnePad
+  currently ignore it).
 - **Inputs:** use `"when": "build"` when a script reads the player's disc or ROM
   (then `--disc` is required and passed as `{disc}`), or `"in-app"` when the
   player chooses it after installing (then `--disc` is refused).
@@ -83,4 +87,3 @@ python3 -m padforge plan examplepad --repo /path/to/examplepad --revision FULL_C
    accepted on a device, mark the host `verified` and pin `reviewed_revision`.
 3. Before anything is published, every public file must pass
    `python3 -m padforge audit`. Personal builds are never published.
-
