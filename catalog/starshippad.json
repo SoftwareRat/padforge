@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "starshippad",
+  "repo_url": "https://github.com/chrissotraidis/starshippad",
+  "reviewed_revision": null,
+  "notes": "StarshipPad owns padforge.json (steps around its existing scripts; ROM chosen in the app).",
+  "manifest": null
+}

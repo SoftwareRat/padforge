@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "goldenpad",
+  "repo_url": "https://github.com/chrissotraidis/goldenpad",
+  "reviewed_revision": null,
+  "notes": "GoldenPad owns padforge.json; every target is planned until a one-command personal build exists.",
+  "manifest": null
+}

@@ -96,9 +96,10 @@ def validate(args):
                          "import them in the app instead of passing --disc")
     templates = [target["command"]] if "command" in target else [step["command"] for step in target["steps"]]
     for template in templates:
-        for item in template:
-            if item.startswith("{repo}/") and not (repo / item[len("{repo}/"):]).is_file():
-                raise ValueError(f"Selected checkout does not contain {item[len('{repo}/'):]}")
+        # The first checkout path is the script; later ones may be outputs it creates.
+        script = next((item for item in template if item.startswith("{repo}/")), None)
+        if script and not (repo / script[len("{repo}/"):]).is_file():
+            raise ValueError(f"Selected checkout does not contain {script[len('{repo}/'):]}")
     if args.source_only and "source-only" not in target.get("modes", {}):
         raise ValueError(f"{manifest['name']} does not expose source-only builds through its CLI")
     if args.no_mods and "no-mods" not in target.get("options", {}):
