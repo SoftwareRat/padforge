@@ -86,6 +86,20 @@ PR only)  12. Clean engines  13. Supporting repos (status only)
 
 ## Owner decisions pending
 
-- Publish a runtime-only IPA/APK (depends on feasibility results).
-- Make PadForge public.
-- Delete the 157 drafts; retire forks; history rewrites.
+1. **KartPad keys in two still-public releases:** v0.1.0 and v0.2.0-preview.1
+   are published; their tag source archives contain both Wii common keys.
+   Drafting them is reversible; tags/history stay downloadable either way.
+2. **Gate policy for references to game functions** (the gate has no exemptions):
+   KartPad guard skeleton + synthetic tests + log/record markers; SnapPad test
+   stub; GalaxyPad signature anchors in scripts; F0X and HarkinianPad
+   (PR #28) decompiled context lines inside patches.
+3. **MaskPad iOS 15 minimum** (Xcode 27 cannot target 14): merge PR #9.
+4. **Runtime-only public apps:** feasible in principle (S1); BlueWake, SunPad
+   and MeleePad already separate app and game module. Publishing is your call.
+5. **Make PadForge public** (public READMEs cannot point to it until then).
+6. Existing: delete the 157 drafts; retire forks; history rewrites.
+
+## Merge queue (PRs that need an owner or a bootstrapped check)
+
+KartPad #336 · MaskPad #9 · HarkinianPad #28 · SunPad #49 · MeleePad #34 ·
+AnnePad #7 · SnapPad #7 · GalaxyPad #15 · CTRPad #40 · BlueWake #2
