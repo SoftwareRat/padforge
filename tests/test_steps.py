@@ -108,6 +108,16 @@ class StepsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "UPPER_CASE"):
             validate_manifest(bad)
 
+    def test_history_summarizes_records(self):
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 0)
+        from padforge.cli import history
+        import io
+        stream = io.StringIO()
+        self.assertEqual(history(self.repo, stream), 0)
+        self.assertIn("completed", stream.getvalue())
+        self.assertIn("starshippad", stream.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

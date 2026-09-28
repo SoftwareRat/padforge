@@ -417,12 +417,47 @@ def list_games(stream=None):
     return 0
 
 
+def history(repo, stream=None):
+    """Summarize the build attempts recorded under a checkout's build/ folder."""
+    stream = stream or sys.stdout
+    records = []
+    for path in sorted((Path(repo) / "build").glob("**/runs/*/record.json")):
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        events = path.parent / "progress.jsonl"
+        seconds = None
+        if events.is_file():
+            lines = events.read_text().splitlines()
+            if lines:
+                try:
+                    seconds = json.loads(lines[-1]).get("build_elapsed_seconds")
+                except ValueError:
+                    pass
+        output = path.parent / str(record.get("output", ""))
+        size = f"{output.stat().st_size / 1e6:.1f} MB" if record.get("output") and output.is_file() else "-"
+        records.append((path.stat().st_mtime, record, seconds, size))
+    if not records:
+        print("No PadForge build records in this checkout", file=stream)
+        return 0
+    for _mtime, record, seconds, size in sorted(records, key=lambda item: item[0]):
+        gate_result = record.get("publication_gate", {}).get("result", "-")
+        duration = f"{seconds / 60:.1f} min" if isinstance(seconds, (int, float)) else "-"
+        print(f"{record.get('status', '?'):9} {record.get('game', '?'):13} {record.get('target', '?'):5} "
+              f"{str(record.get('revision', ''))[:10]:10} {duration:>9} {size:>9} gate {gate_result}",
+              file=stream)
+    return 0
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="padforge", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version=f"PadForge {__version__}")
     commands = parser.add_subparsers(dest="action", required=True)
     commands.add_parser("list", help="Show supported games and platforms")
+    history_parser = commands.add_parser("history", help="Summarize recorded builds in a checkout")
+    history_parser.add_argument("--repo", type=Path, required=True)
     ui_parser = commands.add_parser("ui", help="Open the local browser interface")
     ui_parser.add_argument("--port", type=int, default=0)
     ui_parser.add_argument("--no-open", action="store_true", help="Print the address without opening a browser")
@@ -457,6 +492,8 @@ def main(argv=None):
     try:
         if args.action == "list":
             return list_games()
+        if args.action == "history":
+            return history(args.repo.expanduser().resolve())
         if args.action == "ui":
             from .ui import serve
             return serve(args.port, not args.no_open)

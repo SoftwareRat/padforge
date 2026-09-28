@@ -19,6 +19,7 @@ python3 -m padforge ui                        # local browser page (same command
 python3 -m padforge doctor kartpad            # check this computer (installs nothing)
 python3 -m padforge doctor bluewake --repo /path/to/bluewake
 python3 -m padforge audit path/to/file-or-folder   # release gate
+python3 -m padforge history --repo /path/to/game-repo   # recorded builds
 python3 -m padforge check-manifest /path/to/game-repo
 python3 -m padforge plan bluewake --repo /path/to/bluewake \
   --revision FULL_REVIEWED_COMMIT --disc '/path/to/your disc.iso'
