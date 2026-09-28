@@ -185,6 +185,11 @@ tracker; this file mirrors progress so work can resume after interruption.
   11m05s, exit 0, 168 MB `KartPad.app` passes the repo's own Mac package audit,
   gate FAIL as intended, no Wii key. KartPad now builds iOS and Mac personal
   copies through PadForge. GoldenPad (#39) build started.
+- 05:31 **GoldenPad complete personal build through PadForge** (#39 at
+  `fd92db5`): 2m45s, exit 0, all 91 objects fresh (63 recompiled-function
+  files), primary IPA audit passed, 7.2 MB IPA, gate FAIL as intended. Repo
+  checks pass; tree passes the gate. #39 merged (`8617c3d`), manifest
+  experimental → **L4 on main** (was L1 blocked). SunPad (#49) build started.
 
 ## Level snapshot (01:00)
 
