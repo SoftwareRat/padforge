@@ -181,6 +181,10 @@ tracker; this file mirrors progress so work can resume after interruption.
   corrected packaging run on that build produced an 84.7 MB personal IPA; gate
   FAIL as intended → **L3** (L4 needs a clean rerun). AnnePad's iOS step runs
   ninja with no job limit (~38 compilers). KartPad Mac build started 05:17.
+- 05:28 **KartPad Mac target complete through PadForge** (#336 at `cbf6818`):
+  11m05s, exit 0, 168 MB `KartPad.app` passes the repo's own Mac package audit,
+  gate FAIL as intended, no Wii key. KartPad now builds iOS and Mac personal
+  copies through PadForge. GoldenPad (#39) build started.
 
 ## Level snapshot (01:00)
 
