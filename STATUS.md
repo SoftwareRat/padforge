@@ -133,6 +133,19 @@ tracker; this file mirrors progress so work can resume after interruption.
   0.4.22/43 with its original Bluetooth entitlement passes the full audit.
   Clean rebuild queued last.
 - 04:10 Queue: DinoPad (#7) → SunPad (#49) → AnnePad (#7) → KartPad Mac (#336).
+- 04:13 DinoPad on #7: through bootstrap, safety check, host tools and base
+  translation, then the Mac host configure demanded restored-edition files.
+  Manifest now configures the host with restoration off and builds only the
+  two host shader tools (both verified to build; `b460bd6`).
+- 04:40 **Xcode 27 root cause for SnapPad:** RT64's CMake forces a 10.15
+  (macOS) deployment target on every Apple platform; Xcode 27 rejects it for
+  iOS, so every configure check under RT64 fails (the AvailabilityMacros.h
+  error was a red herring). One-hunk RT64 patch keeps 10.15 for macOS only.
+  With it SnapPad's full iOS configure completes (#7, `779583e`). DinoPad had
+  the same unguarded line; same patch added (#7, `c065d01`). AnnePad,
+  BearBirdPad, BananaPad and GoldenPad already carry an equivalent fix.
+- 04:42 KartPad Mac runner had died with its launching shell; folded into a new
+  queue: SunPad (running) → AnnePad → KartPad Mac → DinoPad → SnapPad.
 
 ## Level snapshot (01:00)
 
