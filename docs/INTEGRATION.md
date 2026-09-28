@@ -10,6 +10,10 @@ inferred for upstream code. There is no plugin loading or arbitrary command opti
 Only an explicitly selected local checkout at a full reviewed commit can run.
 Tracked modifications and untracked files cause rejection. This verifies the
 selected revision; it does not establish that its code or dependencies are safe.
+HEAD and dirty state are rechecked immediately before launching (after disc
+hashing), after backend exit and before saving the final result. Changes reject
+the attempt and are recorded. This catches persistent concurrent changes, not
+edits restored between checks; it is not an immutable checkout or a sandbox.
 The caller must trust that checkout and the tools it executes. Ignored dependency
 trees are still the backend's responsibility. PadForge never fetches a backend.
 
@@ -30,9 +34,20 @@ implement the proposed contract. Wrapper events describe the whole attempt;
 their elapsed time is separate from backend stage time. Logs/events are local
 and may contain personal paths; no diagnostic export is implemented. The small
 record contains identifiers and hashes, not full backend/toolchain provenance.
+The final event stream is drained to EOF after success, failure or cancellation,
+including bursts larger than 64 KiB. Live polls remain bounded.
 Cancellation sends TERM to the process group, allowing 20 seconds for cleanup.
 BlueWake's nested stage/training sessions must forward cancellation correctly;
 arbitrary detached descendants cannot be guaranteed terminated by this wrapper.
+
+Before recording a packaged result, PadForge checks ZIP integrity, unambiguous
+app metadata, the declared executable's presence/Mach-O magic and backend
+provenance. BlueWake additionally requires its fixed module and matching hash,
+clean source revision and local-training marker. KartPad provenance must match
+the disc hash and known profile; its translated code is linked into the app
+executable rather than a separately declared BlueWake-style module. These are
+minimal structural checks, not signing, loadability, training-quality or runtime
+validation. Synthetic executable fixtures intentionally are not runnable apps.
 
 ## Concrete gaps
 

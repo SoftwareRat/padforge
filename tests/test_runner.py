@@ -3,13 +3,16 @@ import json
 import os
 from pathlib import Path
 import signal
+import shlex
 import subprocess
 import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
-from padforge.cli import command, execute, run_process, validate, workspace_lock
+from padforge.cli import command, digest, execute, run_process, validate, workspace_lock
+from fixtures import entries, write_ipa
 
 
 class RunnerTests(unittest.TestCase):
@@ -21,6 +24,8 @@ class RunnerTests(unittest.TestCase):
         self.repo.mkdir()
         self.disc = self.root / "own disc $(do not execute).iso"
         self.disc.write_bytes(b"synthetic input, not game data")
+        self.ipa = self.root / "synthetic.ipa"
+        write_ipa(self.ipa, entries())
         self.git("init", "-q")
         self.git("config", "user.email", "test@example.invalid")
         self.git("config", "user.name", "Test")
@@ -29,11 +34,11 @@ class RunnerTests(unittest.TestCase):
         script.parent.mkdir()
         script.write_text('''#!/bin/bash
 while [ $# -gt 0 ]; do
-  if [ "$1" = "--output" ]; then printf 'synthetic test artifact' > "$2"; exit 0; fi
+  if [ "$1" = "--output" ]; then cp FIXTURE "$2"; exit 0; fi
   shift
 done
 exit 2
-''')
+'''.replace("FIXTURE", shlex.quote(str(self.ipa))))
         self.git("add", ".")
         self.git("commit", "-qm", "Synthetic test backend")
         self.args = argparse.Namespace(game="kartpad", repo=self.repo, disc=self.disc,
@@ -97,6 +102,40 @@ exit 2
 
     def test_success_without_output_fails(self):
         (self.repo / "scripts/build-user-ipa.sh").write_text("exit 0\n")
+        self.git("commit", "-qam", "Backend returns no output")
+        self.args.revision = self.git("rev-parse", "HEAD")
+        self.assertEqual(execute(self.args, self.repo, self.disc), 1)
+        record = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        self.assertEqual(json.loads(record.read_text())["status"], "failed")
+
+    def test_mutation_during_disc_hash_prevents_launch(self):
+        original = self.repo / "scripts/build-user-ipa.sh"
+        def mutate(path):
+            value = digest(path)
+            original.write_text(original.read_text() + "\n# unreviewed edit\n")
+            return value
+        with patch("padforge.cli.digest", side_effect=mutate):
+            self.assertEqual(execute(self.args, self.repo, self.disc), 1)
+        record_path = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        record = json.loads(record_path.read_text())
+        self.assertEqual(record["checkout_check"], "before-launch-failed")
+        self.assertFalse((record_path.parent / "personal.ipa").exists())
+
+    def test_mutation_during_backend_run_rejects_output(self):
+        script = self.repo / "scripts/build-user-ipa.sh"
+        script.write_text("printf '\\n# changed while running\\n' >> \"$0\"\n" + script.read_text())
+        self.git("commit", "-qam", "Self-mutating synthetic backend")
+        self.args.revision = self.git("rev-parse", "HEAD")
+        self.assertEqual(execute(self.args, self.repo, self.disc), 1)
+        record_path = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
+        record = json.loads(record_path.read_text())
+        self.assertEqual(record["checkout_check"], "after-exit-failed")
+        self.assertEqual(record["status"], "failed")
+        self.assertTrue((record_path.parent / "personal.ipa").exists())
+        self.assertNotIn("output_sha256", record)
+
+    def test_plain_text_ipa_is_rejected(self):
+        self.ipa.write_text("not a ZIP package")
         self.assertEqual(execute(self.args, self.repo, self.disc), 1)
         record = next((self.repo / "build/padforge").glob("*/runs/*/record.json"))
         self.assertEqual(json.loads(record.read_text())["status"], "failed")

@@ -15,6 +15,7 @@ import time
 import uuid
 
 from . import __version__
+from .package import validate_ipa
 
 ENTRYPOINTS = {"bluewake": "scripts/builder/build.sh",
                "kartpad": "scripts/build-user-ipa.sh"}
@@ -52,6 +53,13 @@ def workspace_lock(path):
             fcntl.flock(stream, fcntl.LOCK_UN)
 
 
+def check_checkout(repo, revision):
+    if git(repo, "rev-parse", "HEAD") != revision:
+        raise ValueError("Backend HEAD does not match --revision")
+    if git(repo, "status", "--porcelain", "--untracked-files=normal"):
+        raise ValueError("Backend has local changes; use a clean reviewed checkout")
+
+
 def validate(args):
     repo = args.repo.expanduser().resolve()
     disc = args.disc.expanduser().resolve()
@@ -61,10 +69,7 @@ def validate(args):
         raise ValueError("--revision must be the full reviewed Git commit (40 lowercase hex digits)")
     if git(repo, "rev-parse", "--show-toplevel") != str(repo):
         raise ValueError("--repo must be the root of the selected backend checkout")
-    if git(repo, "rev-parse", "HEAD") != args.revision:
-        raise ValueError("Backend HEAD does not match --revision")
-    if git(repo, "status", "--porcelain", "--untracked-files=normal"):
-        raise ValueError("Backend has local changes; use a clean reviewed checkout")
+    check_checkout(repo, args.revision)
     if not (repo / ENTRYPOINTS[args.game]).is_file():
         raise ValueError("Selected checkout does not contain the game's entrypoint")
     if args.game == "kartpad" and (args.source_only or args.no_mods):
@@ -85,7 +90,7 @@ def command(args, repo, disc, work, output):
     return base
 
 
-def run_process(argv, cwd, log_path, event_path, emit):
+def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None):
     """Relay new backend events; retain complete output in a private local log."""
     offset = event_path.stat().st_size if event_path.exists() else 0
     pending = b""
@@ -126,6 +131,8 @@ def run_process(argv, cwd, log_path, event_path, emit):
     process = None
     try:
         with log_path.open("wb") as log:
+            if before_spawn is not None:
+                before_spawn()
             process = subprocess.Popen(argv, cwd=cwd, stdout=log,
                                        stderr=subprocess.STDOUT, start_new_session=True)
             last_progress = time.monotonic()
@@ -203,17 +210,29 @@ def execute(args, repo, disc):
         atomic_json(attempt / "record.json", record)
         emit("build_started")
         print(f"Local log: {attempt / 'backend.log'}", flush=True)
+
+        def recheck(phase):
+            record["checkout_check"] = phase + "-failed"
+            check_checkout(repo, args.revision)
+            record["checkout_check"] = phase + "-passed"
+
         try:
             code, cancelled = run_process(command(args, repo, disc, work, output), repo,
-                                          attempt / "backend.log", work / "logs/progress.jsonl", emit)
+                                          attempt / "backend.log", work / "logs/progress.jsonl", emit,
+                                          before_spawn=lambda: recheck("before-launch"))
+            recheck("after-exit")
             if code == 0 and not args.source_only:
                 if not output.is_file() or output.stat().st_size == 0:
                     raise ValueError("Backend exited successfully but produced no IPA")
+                record["package_validation"] = validate_ipa(output, args.game, args.revision,
+                                                            identity["disc_sha256"])
                 record["output_sha256"] = digest(output)
                 record["output"] = "personal.ipa"
+            recheck("before-record")
             status = "cancelled" if cancelled else "completed" if code == 0 else "failed"
-        except (OSError, ValueError) as error:
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
             code, status = 1, "failed"
+            record["failure_type"] = type(error).__name__
             print(f"Build failed: {error}", file=sys.stderr)
         record.update(status=status, exit_code=code)
         atomic_json(attempt / "record.json", record)
