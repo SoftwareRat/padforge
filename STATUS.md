@@ -65,6 +65,20 @@ tracker; this file mirrors progress so work can resume after interruption.
   DevilTouch #5, BellPad #15, BearBirdPad #14, BarrelPad #13, VaultPad #4.
   Manifests on open PRs: AnnePad #7, SnapPad #7, SunPad #49.
 - 01:00 KartPad bootstrap verified; StarshipPad complete build running.
+- 01:08 StarshipPad complete build through PadForge from main: 13m38s, exit 0,
+  6.9 MB IPA, gate FAIL as expected → L4; manifest marked experimental (#15).
+- 01:10–01:27 KartPad through PadForge: fixed two Builder bugs on #336
+  (interrupted-bootstrap recovery; work-root vs shared download cache), then a
+  complete build: 17m25s, exit 0, 64.8 MB IPA, provenance check passed, gate
+  FAIL as intended, **no Wii key in the personal IPA** (confirms #335).
+- 01:30 KartPad accepts other dumps after verified extraction (ISO and RVZ
+  converted from the pinned WBFS pass; Wind Waker ISO refused). On #336.
+- 01:30 Xcode 27 finding: iOS deployment target 14.0 fails CMake's
+  try-compile. Affects MaskPad (#9) and HarkinianPad (#30, draft); all other
+  ports target iOS 15+ (remaining 14.0/13.0/11.0 values are macOS targets).
+- 01:33 Build queue (scratch runner): BrawlerPad running; then HarkinianPad
+  (#30 branch), SpaghettiPad, BearBirdPad, DevilTouch, BellPad, BarrelPad,
+  VaultPad, BallPad, BananaPad, AnnePad (#7), SnapPad (#7), DinoPad (#7).
 
 ## Level snapshot (01:00)
 
