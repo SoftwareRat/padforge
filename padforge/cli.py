@@ -20,7 +20,7 @@ import uuid
 
 from . import __version__, gate
 from .manifest import (RUNNABLE_STATES, catalog, expand, host_id, load_manifest,
-                       manifest_for, manifest_sha256)
+                       manifest_for, manifest_sha256, needs_build_input)
 from .package import validate_ipa
 
 
@@ -78,15 +78,22 @@ def selection(args, repo):
 
 def validate(args):
     repo = args.repo.expanduser().resolve()
-    disc = args.disc.expanduser().resolve()
-    if not disc.is_file():
-        raise ValueError("Disc image must be an existing local file")
     if not re.fullmatch(r"[0-9a-f]{40}", args.revision):
         raise ValueError("--revision must be the full reviewed Git commit (40 lowercase hex digits)")
     if git(repo, "rev-parse", "--show-toplevel") != str(repo):
         raise ValueError("--repo must be the root of the selected backend checkout")
     check_checkout(repo, args.revision)
     manifest, _name, target = selection(args, repo)
+    disc = None
+    if needs_build_input(manifest):
+        if getattr(args, "disc", None) is None:
+            raise ValueError(f"{manifest['name']} needs --disc: your own game image is read during the build")
+        disc = args.disc.expanduser().resolve()
+        if not disc.is_file():
+            raise ValueError("Disc image must be an existing local file")
+    elif getattr(args, "disc", None) is not None:
+        raise ValueError(f"{manifest['name']} does not read game files during the build; "
+                         "import them in the app instead of passing --disc")
     for item in target["command"]:
         if item.startswith("{repo}/") and not (repo / item[len("{repo}/"):]).is_file():
             raise ValueError("Selected checkout does not contain the game's entrypoint")
@@ -99,7 +106,7 @@ def validate(args):
 
 def command(args, repo, disc, work, output):
     _manifest, _name, target = selection(args, repo)
-    values = {"repo": str(repo), "disc": str(disc), "work": str(work),
+    values = {"repo": str(repo), "disc": str(disc) if disc else "", "work": str(work),
               "output": str(output), "jobs": str(args.jobs)}
     mode = "source-only" if args.source_only else "full"
     argv = expand(target["command"], values) + expand(target.get("modes", {}).get(mode, []), values)
@@ -201,6 +208,8 @@ def workspace_root(args, repo):
 def check_output(check, output, game_revision, disc_sha256):
     if check == "none":
         return {"check": "none"}
+    if check == "ipa":
+        return validate_ipa(output, None, game_revision, disc_sha256)
     return validate_ipa(output, check.split("-")[0], game_revision, disc_sha256)
 
 
@@ -222,11 +231,12 @@ def execute(args, repo, disc):
         raise ValueError("Backend must ignore build/padforge before running")
     lock_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with workspace_lock(lock_root / "runner.lock"):
-        print("Hashing the disc for the build record…", flush=True)
+        if disc:
+            print("Hashing the disc for the build record…", flush=True)
         mods = (not args.no_mods) if "no-mods" in target.get("options", {}) else "backend-default"
         identity = {"schema_version": 1, "padforge_version": __version__,
                     "game": args.game, "revision": args.revision,
-                    "disc_sha256": digest(disc), "target": target_name,
+                    "disc_sha256": digest(disc) if disc else None, "target": target_name,
                     "mods": mods, "source_only": args.source_only, "jobs": args.jobs}
         # Invocation controls belong to the attempt, not to reusable build inputs.
         # Keep revisions isolated until every adapter proves cross-revision invalidation.
@@ -389,7 +399,8 @@ def build_parser():
         sub.add_argument("game")
         sub.add_argument("--repo", type=Path, required=True)
         sub.add_argument("--revision", required=True, help="Full commit you have reviewed and trust")
-        sub.add_argument("--disc", type=Path, required=True)
+        sub.add_argument("--disc", type=Path,
+                         help="Your own game image, for games that read it during the build")
         sub.add_argument("--target", default="ios")
         sub.add_argument("--workspace-root", type=Path,
                          help="Ignored directory below backend build/ (default: build/padforge)")
@@ -434,4 +445,3 @@ def main(argv=None):
         return 1
     except KeyboardInterrupt:
         return 130
-

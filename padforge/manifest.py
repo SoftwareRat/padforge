@@ -19,7 +19,8 @@ HOST_STATES = {"verified", "experimental", "planned", "unsupported"}
 RUNNABLE_STATES = {"verified", "experimental"}
 TARGETS = {"ios", "macos", "android", "windows", "linux"}
 PLACEHOLDERS = {"repo", "disc", "work", "output", "jobs"}
-CHECKS = {"bluewake-ipa", "kartpad-ipa", "none"}
+CHECKS = {"bluewake-ipa", "kartpad-ipa", "ipa", "none"}
+INPUT_TIMES = {"build", "in-app"}
 CATALOG = Path(__file__).resolve().parent.parent / "catalog"
 _ID = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 
@@ -52,6 +53,7 @@ def validate_manifest(data):
     for item in inputs:
         _require(isinstance(item, dict) and isinstance(item.get("type"), str), "each input needs a type")
         _require(isinstance(item.get("formats", []), list), "input formats must be a list")
+        _require(item.get("when", "build") in INPUT_TIMES, f"input when must be one of {sorted(INPUT_TIMES)}")
         for digest in item.get("verified_sha256", []):
             _require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest),
                      "verified_sha256 entries must be lowercase SHA-256 digests")
@@ -97,6 +99,11 @@ def validate_manifest(data):
 
 def manifest_sha256(data):
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+
+def needs_build_input(data):
+    """True when the backend reads the player's disc/ROM during the build."""
+    return any(item.get("when", "build") == "build" for item in data["inputs"])
 
 
 def load_manifest(path):
@@ -150,4 +157,3 @@ def host_id():
 def expand(template, values):
     """Fill placeholders inside a fixed argument list; values never become shell text."""
     return [item.format_map(values) for item in template]
-

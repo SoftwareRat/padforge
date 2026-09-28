@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "maskpad",
+  "repo_url": "https://github.com/chrissotraidis/maskpad",
+  "reviewed_revision": null,
+  "notes": "MaskPad owns padforge.json in its repository. The build needs no ROM; players import theirs in the app.",
+  "manifest": null
+}

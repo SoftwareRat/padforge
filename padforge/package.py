@@ -59,6 +59,8 @@ def validate_ipa(path, game, revision, disc_sha256):
             if not isinstance(info.get("CFBundleIdentifier"), str) or not info["CFBundleIdentifier"]:
                 raise ValueError("IPA has no bundle identifier")
             binary_hash = executable_hash(app + "/" + executable)
+            if game is None:
+                return {"check": "minimal-ipa-structure", "executable_sha256": binary_hash}
             provenance_name = (app + "/BuilderProvenance.json" if game == "bluewake"
                                else "KartPadBuilderProvenance.json")
             provenance = json.loads(metadata(provenance_name))

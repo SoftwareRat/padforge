@@ -23,7 +23,10 @@ def minimal():
 
 class ManifestTests(unittest.TestCase):
     def test_catalog_entries_validate(self):
-        self.assertEqual(sorted(catalog()), ["bluewake", "kartpad"])
+        entries = catalog()
+        self.assertTrue({"bluewake", "kartpad"} <= set(entries))
+        for game, entry in entries.items():
+            self.assertEqual(entry["id"], game)
 
     def test_rejects_unknown_placeholder_kind_and_host(self):
         for path, value in ((("targets", "ios", "command"), ["{home}/x"]),
@@ -123,4 +126,3 @@ class GateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
