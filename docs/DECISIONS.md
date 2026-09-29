@@ -139,6 +139,19 @@ because the release gate opens ZIP archives only. Unsigned launchers still meet
 SmartScreen and Gatekeeper warnings; the README says how to get past them. A
 signed desktop app is a later step if players need it.
 
+## D9. iPhone builds target iOS 15 or later (29 Sep 2026)
+
+Xcode 27, the Xcode PadForge's iPhone builds use, supports iOS 15.0 to 27.0
+only; a project that asks for 14.0 fails at CMake configure (HarkinianPad and
+MaskPad showed it, from their upstreams' cached 10.15 macOS target). Ports that
+defaulted to 14.0 move to 15.0, still overridable. iOS 15 runs on the same
+iPhones and iPads as iOS 14 (iPhone 6s and SE, iPad Air 2, iPad mini 4 and
+later), so no device loses support; a device still on 14 needs a system update.
+
+Why: a player's PadForge build must succeed with the current Xcode. Recorded
+as a loop decision (not in the owner's stop list); reversible per port with its
+`DEPLOYMENT_TARGET` override.
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk
