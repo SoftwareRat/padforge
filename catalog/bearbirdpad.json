@@ -2,6 +2,11 @@
   "schema_version": 1,
   "id": "bearbirdpad",
   "repo_url": "https://github.com/chrissotraidis/bearbirdpad",
+  "name": "BearBirdPad",
+  "player_targets": [
+    "ios"
+  ],
+  "player_help": "https://github.com/chrissotraidis/bearbirdpad#developer-preview",
   "reviewed_revision": null,
   "notes": "Manifest owned by the game repository (steps around its existing scripts).",
   "manifest": null

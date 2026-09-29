@@ -7,9 +7,19 @@ uploaded and no game files are downloaded.
 
 ## Make a game
 
-Games you can make today: **KartPad** (Android game pack on Windows, Mac or
-Linux; complete iPhone/iPad app on an Apple Silicon Mac with Xcode). You need
-your own copy of the game; see the game's README for exactly which one.
+Games you can make today:
+
+- **KartPad**: Android game pack on Windows, Mac or Linux; iPhone/iPad on an
+  Apple Silicon Mac with Xcode.
+- On an Apple Silicon Mac with Xcode, for iPhone/iPad: **BallPad**,
+  **BearBirdPad**, **BlueWake**, **BrawlerPad**, **GoldenPad**,
+  **HarkinianPad**, **MaskPad**, **SpaghettiPad** and **StarshipPad**. Some
+  need build libraries from Homebrew first; each game's release notes list
+  them.
+
+You need your own copy of the game; see the game's README for exactly which
+one. Games whose file is chosen in the app (HarkinianPad, MaskPad and others)
+do not ask for it in PadForge.
 
 Download PadForge for your computer from the
 [latest release](https://github.com/chrissotraidis/padforge/releases/latest),

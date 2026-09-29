@@ -2,6 +2,11 @@
   "schema_version": 1,
   "id": "bluewake",
   "repo_url": "https://github.com/chrissotraidis/bluewake",
+  "name": "BlueWake",
+  "player_targets": [
+    "ios"
+  ],
+  "player_help": "https://github.com/chrissotraidis/bluewake#getting-started",
   "reviewed_revision": null,
   "notes": "Interim manifest until BlueWake carries padforge.json. No revision is marked reviewed for players yet; pass --revision explicitly.",
   "manifest": {
