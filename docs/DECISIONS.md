@@ -148,6 +148,15 @@ machine or container, then Windows through WSL2.
 
 ## S3. Runtime-only APK plus player module
 
+**Verified 29 Sep 2026 (emulator, Android 16 / API 36, targetSdk 36):** an app
+copied a native library into its private `files/` directory and loaded it with
+`System.load`. That library depended on a library shipped in the APK, its static
+registrar called into the host library at load time, and JNI calls in both
+directions worked (`PACKPROBE OK ... registered=42 value=70`). This is the
+KartPad game-pack pattern, so the empty APK can keep the owner's signing key and
+normal in-place updates. The re-signing route below is no longer needed for
+Android.
+
 Android 10+ restricts executing code from an app's writable data directory for
 apps targeting API 29+; whether `dlopen` from app storage is reliable is
 *unverified* and not relied on. Preferred route mirrors iPhone: insert the
