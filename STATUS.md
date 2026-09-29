@@ -71,6 +71,14 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   failed import, e.g. a full device, now shows a dialog instead of vanishing.
   Next: rebuild the release APK from `b6348e92`, Linux run in Docker,
   iPhone race, then publish.
+- **Linux gate PASS, releases staged (17:00).** Clean Ubuntu x86_64: `padforge
+  make kartpad android` 21 min end to end; its pack raced in the final APK.
+  Fixes found: Git hint, .NET invariant globalization, NDK symlinks, published
+  app name. Mac: `padforge make kartpad ios` from a fresh home, 9 min; the IPA
+  boots on the iPhone 14 with saves intact. Players get three ZIPs with a
+  launcher and a guided start (D8); Windows and Linux downloads checked. KartPad
+  v0.6.0 and PadForge v0.1.0 staged and gate-checked. Waiting on the iPhone
+  race (the phone must be locked once, or the UI Automation passcode entered).
 
 ## Overnight run 28–29 Sep (complete)
 
