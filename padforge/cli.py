@@ -93,7 +93,8 @@ def validate(args):
     repo = args.repo.expanduser().resolve()
     if not re.fullmatch(r"[0-9a-f]{40}", args.revision):
         raise ValueError("--revision must be the full reviewed Git commit (40 lowercase hex digits)")
-    if git(repo, "rev-parse", "--show-toplevel") != str(repo):
+    # Compare as paths: Git on Windows reports C:/x/y with forward slashes.
+    if Path(git(repo, "rev-parse", "--show-toplevel")).resolve() != repo:
         raise ValueError("--repo must be the root of the selected backend checkout")
     check_checkout(repo, args.revision)
     manifest, _name, target = selection(args, repo)
