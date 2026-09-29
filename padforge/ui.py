@@ -19,8 +19,12 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 import webbrowser
 
-from . import __version__
-from .manifest import catalog, manifest_for
+from . import __version__, tools
+from .manifest import catalog, host_id, manifest_for
+
+
+def git_tool():
+    return tools.executable("git", host_id())
 
 ROOT = Path(__file__).resolve().parent.parent
 STAGE_LINE = re.compile(r"backend_event: (\S+) (stage_\w+)")
@@ -134,9 +138,9 @@ def make_handler(token, builds):
                         argv += ["--repo", form["repo"]]
                     return self.reply(200, run_cli(argv))
                 if route == "/api/head":
-                    head = subprocess.run(["git", "-C", form["repo"], "rev-parse", "HEAD"],
+                    head = subprocess.run([git_tool(), "-C", form["repo"], "rev-parse", "HEAD"],
                                           capture_output=True, text=True)
-                    dirty = subprocess.run(["git", "-C", form["repo"], "status", "--porcelain"],
+                    dirty = subprocess.run([git_tool(), "-C", form["repo"], "status", "--porcelain"],
                                            capture_output=True, text=True).stdout.strip()
                     return self.reply(200, {"revision": head.stdout.strip(), "clean": not dirty,
                                             "error": head.stderr.strip()})
@@ -210,4 +214,3 @@ async function poll(){const r=await (await fetch("/api/build",{headers:H})).json
  $("stages").innerHTML=rows||"<tr><td>"+(r.state=="running"?"Starting…":"No stages reported")+"</td></tr>";
  if(r.state=="running")setTimeout(poll,2000);else if(r.state=="finished")$("stages").insertAdjacentHTML("beforeend","<tr><td><b>Finished</b></td><td>exit "+r.exit_code+"</td></tr>")}
 </script></body></html>"""
-

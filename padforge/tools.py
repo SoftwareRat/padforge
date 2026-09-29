@@ -125,3 +125,9 @@ def environment(names, host, base=None):
     if paths:
         env["PATH"] = os.pathsep.join(paths + [env.get("PATH", "")])
     return env
+
+
+def executable(name, host):
+    """Full path to a tool: PadForge's installed copy first, then the system's.
+    (Windows looks programs up on the parent's PATH, so pass full paths.)"""
+    return shutil.which(name, path=environment([name], host).get("PATH")) or name

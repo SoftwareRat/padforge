@@ -25,7 +25,8 @@ from .package import validate_ipa
 
 
 def git(repo, *args):
-    return subprocess.check_output(["git", "-C", str(repo), *args], text=True).strip()
+    return subprocess.check_output([tools.executable("git", host_id()), "-C", str(repo), *args],
+                                   text=True).strip()
 
 
 def digest(path):
@@ -305,7 +306,8 @@ def execute(args, repo, disc):
     lock_root = repo / "build/padforge"
     root = workspace_root(args, repo)
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if subprocess.run(["git", "-C", str(repo), "check-ignore", "-q", str(root)]).returncode:
+    if subprocess.run([tools.executable("git", host_id()), "-C", str(repo), "check-ignore", "-q",
+                       str(root)]).returncode:
         raise ValueError("Backend must ignore build/padforge before running")
     lock_root.mkdir(parents=True, exist_ok=True, mode=0o700)
     with workspace_lock(lock_root / "runner.lock"):
@@ -463,14 +465,11 @@ def get_game(game, dest, ref=None):
         raise ValueError(f"unknown game {game}; see padforge list")
     if dest.exists() and any(dest.iterdir()):
         raise ValueError(f"{dest} is not empty")
-    env = dict(os.environ)
     if shutil.which("git") is None:
         tools.install(["git"], host_id())
-        env = tools.environment(["git"], host_id())
-    # Windows looks programs up on the parent's PATH, so resolve Git first.
-    git_path = shutil.which("git", path=env.get("PATH"))
-    argv = [git_path, "clone"] + (["--branch", ref] if ref else []) + [entry["repo_url"], str(dest)]
-    subprocess.run(argv, check=True, env=env)
+    argv = [tools.executable("git", host_id()), "clone"] + (["--branch", ref] if ref else []) \
+        + [entry["repo_url"], str(dest)]
+    subprocess.run(argv, check=True)
     print(f"{game} source in {dest}")
     return 0
 
