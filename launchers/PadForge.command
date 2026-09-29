@@ -1,8 +1,11 @@
 #!/bin/bash
 # PadForge for macOS. Double-click to start.
 cd "$(dirname "$0")" || exit 1
-if python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
-  python3 -m padforge "$@"
+# Apple's Python: it uses the system's certificates (a python.org Python needs its
+# Install Certificates step first) and comes with the command line tools PadForge needs.
+PYTHON=/usr/bin/python3
+if "$PYTHON" -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
+  "$PYTHON" -m padforge "$@"
 else
   echo "PadForge needs Python 3.9 or newer. Apple's command line tools include it (and Git):"
   echo "  xcode-select --install"

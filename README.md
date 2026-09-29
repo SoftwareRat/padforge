@@ -38,8 +38,10 @@ unzip it and start it:
 
 PadForge asks which game and platform, then for your own game file (drag it
 into the window and press Enter) and where to save (Enter for Downloads). The
-first run downloads a few GB of tools and can take from about 10 minutes to an
-hour, depending on the computer. The same thing as one command:
+first run downloads about 4 GB of tools, needs about 16 GB free in total, and
+can take from about 10 minutes to an hour, depending on the computer. Running
+it again for the same game version takes seconds. If a build stops, PadForge
+shows the reason and where to ask for help. The same thing as one command:
 
 ```
 python -m padforge make kartpad android --disc "Mario Kart Wii.wbfs"

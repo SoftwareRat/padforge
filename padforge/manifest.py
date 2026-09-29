@@ -159,6 +159,9 @@ def catalog():
             raise ValueError(f"catalog/{path.name}: player_targets lists android, ios or macos")
         if entry.get("player_game_file", "build") not in ("build", "in-app"):
             raise ValueError(f"catalog/{path.name}: player_game_file is build or in-app")
+        space = entry.get("free_space_gb", 0)
+        if not isinstance(space, int) or isinstance(space, bool) or space < 0:
+            raise ValueError(f"catalog/{path.name}: free_space_gb is a whole number of GB")
         if entry.get("manifest") is not None:
             validate_manifest(entry["manifest"])
             if entry["manifest"]["id"] != entry["id"]:

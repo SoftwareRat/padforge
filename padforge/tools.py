@@ -17,6 +17,25 @@ from pathlib import Path
 
 LOCK = Path(__file__).with_name("tools.lock.json")
 DIGESTS = ("sha512", "sha256", "sha1")
+# Seconds without any data before a download counts as stalled.
+TIMEOUT = 60
+
+
+def open_url(url):
+    """urlopen that gives up on a stalled connection and explains failures plainly."""
+    try:
+        return urllib.request.urlopen(url, timeout=TIMEOUT)
+    except OSError as error:  # URLError, timeouts and SSL errors are all OSErrors
+        raise RuntimeError(download_problem(url, error)) from error
+
+
+def download_problem(url, error):
+    if "CERTIFICATE_VERIFY_FAILED" in str(error):
+        return ("This Python cannot check website certificates, so PadForge cannot download. "
+                "On a Mac, start PadForge with PadForge.command (it uses Apple's Python), or run "
+                "Install Certificates.command in your Python folder. Then run PadForge again.")
+    return (f"Could not download {url} ({error}). Check your internet connection and run "
+            "PadForge again; finished downloads are kept.")
 
 
 def lock():
@@ -40,10 +59,20 @@ def _download(entry, destination, stream):
     digest = hashlib.new(algo)
     partial = destination.with_name(destination.name + ".partial")
     print(f"  downloading {entry['url']}", file=stream, flush=True)
-    with urllib.request.urlopen(entry["url"]) as response, partial.open("wb") as handle:
-        while chunk := response.read(1 << 20):
-            digest.update(chunk)
-            handle.write(chunk)
+    with open_url(entry["url"]) as response, partial.open("wb") as handle:
+        total = int(response.headers.get("Content-Length") or 0)
+        done, shown = 0, 0
+        try:
+            while chunk := response.read(1 << 20):
+                digest.update(chunk)
+                handle.write(chunk)
+                done += len(chunk)
+                # Big tools (the Android NDK is over 1 GB) show progress every 10%.
+                if total > 50 << 20 and done * 10 // total > shown:
+                    shown = done * 10 // total
+                    print(f"    {shown * 10}% of {total / (1 << 30):.1f} GB", file=stream, flush=True)
+        except OSError as error:
+            raise RuntimeError(download_problem(entry["url"], error)) from error
     if digest.hexdigest() != entry[algo].lower():
         partial.unlink()
         raise RuntimeError(f"{algo} mismatch for {entry['url']}; nothing was installed")
