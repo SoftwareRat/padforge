@@ -152,6 +152,21 @@ Why: a player's PadForge build must succeed with the current Xcode. Recorded
 as a loop decision (not in the owner's stop list); reversible per port with its
 `DEPLOYMENT_TARGET` override.
 
+## D10. N64 ports publish the recipe only (29 Sep 2026)
+
+The N64 ports (GoldenPad, BananaPad, BearBirdPad, SnapPad, DinoPad and the
+like) compile the code translated from the ROM straight into the app binary
+through CMake; they have no separate game module. They therefore follow the
+decompilation row of D5: the release publishes the recipe, and PadForge builds
+the whole app from the player's own ROM.
+
+Why: splitting each N64 port into an empty app plus a loadable module (the
+BlueWake and KartPad pattern) would be new engineering per port, and it gives
+the player nothing: these are iPhone/iPad-only apps, so the player needs an
+Apple Silicon Mac either way, and nothing with game code is published in either
+shape. The N64 recipe (N64Recomp + RT64) stays shared across the ports. If a
+port gains Android or a Windows-built iPhone path later, revisit this for it.
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk
