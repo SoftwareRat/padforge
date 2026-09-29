@@ -52,6 +52,25 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   app its 8 wrapped original functions (pack interface v2); one pack per app
   version. Pack build ~5 min at 8 jobs on this Mac. Next: iPhone half (empty IPA
   + pack in `Frameworks/`), then Windows/Linux hosts (step 4).
+- **Step 3, iPhone half (11:45).** Empty 0.6.0 IPA passes the content check
+  (0 address-named functions) and installs in place on the iPhone 14 with data
+  intact; the iPhone pack builds and passes the state check. The iPhone race
+  waits on iPhone Mirroring, which needs the phone locked once by hand.
+- **Step 4 (12:45 to 15:00).** `padforge tools` (pinned, digest-checked
+  Git, .NET 8, CMake, Ninja, NDK, nodtool), `padforge get` and
+  `padforge make GAME PLATFORM --disc FILE`. KartPad's pack build is now
+  pure Python (no bash, perl, rsync). Windows fixes: Git by full path,
+  forward-slash paths, nodtool.EXE version text, blob symbol spellings, paths
+  under 260 characters, llvm-cxxfilt instead of c++filt.
+- **Android gate PASS (15:00).** A clean `padforge make kartpad android` in
+  the Windows 11 VM made a pack (SHA-256 `c248cb3c...30c3`) that the
+  release-signed empty APK imported and raced with (Luigi Circuit, lap 1/3).
+  Windows timing on this ARM VM: tools ~2 min, extract + translate ~3 min,
+  compile ~45 min under x64 emulation. Same Release code as the Mac pack
+  (116.4 vs 116.6 MB). App fix found on the way (KartPad `b6348e92`): a
+  failed import, e.g. a full device, now shows a dialog instead of vanishing.
+  Next: rebuild the release APK from `b6348e92`, Linux run in Docker,
+  iPhone race, then publish.
 
 ## Overnight run 28–29 Sep (complete)
 
