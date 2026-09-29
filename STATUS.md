@@ -99,6 +99,23 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   - Owner calls: N64 split vs recipe-only, HarkinianPad #28, SnapPad,
     GalaxyPad and F0X gate policy, UTP, KidPad listing, AltStore #5, CTRPad
     Actions billing.
+- **Status (20:10).** Done means three things per repo: a public release in
+  the formula's shape, a README "Get it" section that matches it, and the
+  Notion row linking both (new tracker columns: Release, README ready).
+  - KartPad on a real Android phone: the public PadForge v0.1.0 made the pack
+    on this Mac (19 min); added through Choose file on a Pixel 9 Pro XL, it
+    raced at 60 FPS. Gap for 0.6.1: no button to replace an added pack.
+  - BlueWake: `padforge make bluewake ios` PASS (2 h 19 min including
+    tuning; 412 MB module). Installed in place on the iPhone; the console
+    shows the module loading, disc reads and 30 FPS at full speed. The
+    gameplay screenshot waits for the iPhone's screen to be woken.
+  - Merged: StarshipPad #16, BallPad #9, BrawlerPad #9, DevilTouch #8
+    (README points to the release). MaskPad #10: release check reads
+    version.json. VaultPad #8 (README) waits for CI.
+  - HarkinianPad: `padforge make harkinianpad ios --ref main` building; then
+    iPhone gameplay and the recipe-only v0.2.0 release. Then a PadForge build
+    check and release for BellPad, SpaghettiPad, StarshipPad, BallPad,
+    BrawlerPad and MaskPad.
 
 ## Overnight run 28–29 Sep (complete)
 
