@@ -99,6 +99,9 @@ def validate_manifest(data):
             _require(isinstance(target["tools"], list)
                      and all(isinstance(item, str) and item in known for item in target["tools"]),
                      f"{where}.tools must name tools from PadForge's tool lock: {sorted(known)}")
+        if "published_app" in target:
+            _require(isinstance(target["published_app"], str) and "{version}" in target["published_app"],
+                     f"{where}.published_app must name the release asset, with {{version}}")
         modes = target.get("modes", {"full": []})
         _require(isinstance(modes, dict) and "full" in modes, f"{where}.modes must include full")
         for mode, extra in modes.items():

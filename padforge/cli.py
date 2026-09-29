@@ -16,6 +16,7 @@ import signal
 import subprocess
 import sys
 import time
+import urllib.request
 import uuid
 
 from . import __version__, gate, tools
@@ -379,6 +380,7 @@ def execute(args, repo, disc):
                                                             args.revision, identity["disc_sha256"])
                 record["output_sha256"] = digest(output)
                 record["output"] = output.name
+                args.output_path = output
                 record["publication_gate"] = publication_gate(output)
                 print(f"Release gate on personal output: {record['publication_gate']['result']} "
                       "(personal build, not publishable)", flush=True)
@@ -393,6 +395,73 @@ def execute(args, repo, disc):
         emit("build_" + status, exit_code=code)
         print(f"Build record: {attempt / 'record.json'}")
         return code if code >= 0 else 128 - code
+
+
+def latest_release(repo_url):
+    """The game's latest GitHub release: tag and downloadable assets."""
+    path = repo_url.removeprefix("https://github.com/").removesuffix(".git")
+    with urllib.request.urlopen(f"https://api.github.com/repos/{path}/releases/latest") as response:
+        data = json.load(response)
+    return data["tag_name"], {asset["name"]: asset["browser_download_url"] for asset in data["assets"]}
+
+
+def published_app(name, assets, folder):
+    """Download a release asset and check it against the release's SHA256SUMS."""
+    if name not in assets or "SHA256SUMS" not in assets:
+        raise ValueError(f"the release has no {name} with SHA256SUMS")
+    with urllib.request.urlopen(assets["SHA256SUMS"]) as response:
+        sums = dict(reversed(line.split(maxsplit=1)) for line in response.read().decode().splitlines()
+                    if line.strip())
+    expected = sums.get(name) or sums.get("*" + name)
+    if not expected:
+        raise ValueError(f"SHA256SUMS does not list {name}")
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / name
+    if not path.is_file() or digest(path) != expected:
+        partial = path.with_name(path.name + ".partial")
+        with urllib.request.urlopen(assets[name]) as response, partial.open("wb") as handle:
+            shutil.copyfileobj(response, handle)
+        if digest(partial) != expected:
+            partial.unlink()
+            raise ValueError(f"{name} does not match the release's SHA256SUMS")
+        partial.replace(path)
+    return path
+
+
+def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
+    """The player's command: from their own game file to their own copy, in one step."""
+    entry = catalog().get(game)
+    if entry is None:
+        raise ValueError(f"unknown game {game}; see padforge list")
+    home = tools.tools_root().parent
+    assets = {}
+    if ref is None:
+        ref, assets = latest_release(entry["repo_url"])
+    source = home / "games" / f"{game}-{re.sub(r'[^A-Za-z0-9._-]', '_', ref)}"
+    if not source.exists():
+        get_game(game, source, ref)
+    manifest, _source = manifest_for(game, source)
+    target = manifest["targets"].get(platform_name)
+    if target is None or ("command" not in target and "steps" not in target):
+        raise ValueError(f"{manifest['name']} cannot be built for {platform_name} yet")
+    tools.install(target.get("tools", []), host_id())
+    version = read_game_version(source) or ref.lstrip("v")
+    if target.get("published_app") and app is None:
+        name = target["published_app"].format(version=version)
+        print(f"Downloading the published {name}", flush=True)
+        app = published_app(name, assets, home / "apps" / game)
+    args = argparse.Namespace(game=game, repo=source, revision=git(source, "rev-parse", "HEAD"),
+                              disc=disc, target=platform_name, workspace_root=None, jobs=jobs,
+                              source_only=False, no_mods=False, app=app)
+    code = execute(args, source, disc)
+    if code != 0:
+        return code
+    out.mkdir(parents=True, exist_ok=True)
+    result = out / f"{manifest['name']}-v{version}-{platform_name}-personal{args.output_path.suffix}"
+    shutil.copyfile(args.output_path, result)
+    print(f"Your {manifest['name']} for {platform_name}: {result}")
+    print("It contains game code made from your own copy: keep it to yourself.")
+    return 0
 
 
 def version_tuple(text):
@@ -544,6 +613,14 @@ def build_parser():
     get_parser.add_argument("game")
     get_parser.add_argument("dest", type=Path)
     get_parser.add_argument("--ref", help="Branch or tag (default: the repository's default branch)")
+    make_parser = commands.add_parser("make", help="Make your own copy of a game from your game file")
+    make_parser.add_argument("game")
+    make_parser.add_argument("platform", help="android, ios or macos")
+    make_parser.add_argument("--disc", type=Path, required=True, help="Your own game file")
+    make_parser.add_argument("--out", type=Path, default=Path.cwd(), help="Where to save the result")
+    make_parser.add_argument("--jobs", type=int, choices=range(1, 17), default=4)
+    make_parser.add_argument("--ref", help=argparse.SUPPRESS)
+    make_parser.add_argument("--app", type=Path, help=argparse.SUPPRESS)
     manifest_parser = commands.add_parser("check-manifest", help="Validate a padforge.json file")
     manifest_parser.add_argument("path", type=Path)
     audit_parser = commands.add_parser("audit", help="Run the release gate on files or folders")
@@ -591,6 +668,12 @@ def main(argv=None):
             return 0
         if args.action == "get":
             return get_game(args.game, args.dest.expanduser().resolve(), args.ref)
+        if args.action == "make":
+            disc = args.disc.expanduser().resolve()
+            if not disc.is_file():
+                raise ValueError(f"game file not found: {disc}")
+            return make(args.game, args.platform, disc, args.out.expanduser().resolve(), args.ref,
+                        args.app.expanduser().resolve() if args.app else None, args.jobs)
         if args.action == "check-manifest":
             path = args.path / "padforge.json" if args.path.is_dir() else args.path
             data = load_manifest(path)
