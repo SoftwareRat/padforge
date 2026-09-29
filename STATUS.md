@@ -10,7 +10,11 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
 
 - **Step 1 done (09:20).** Windows 11 VM at 16 GB / 8 cores, commands run
   inside it; Docker Desktop runs Linux containers (image pulls work).
-- **Step 2 (in progress).** KartPad #336 now passes the content check:
+- **Step 2 done (09:55).** #336 merged (`87467f3`); main's GitHub source
+  archive passes the content check. iOS (11m44s) and Mac (10m42s) builds
+  complete through PadForge at 0.6.0/240. CI `boundaries` has failed on main
+  since 26 Sep (unrelated pipeline-budget probe). Details:
+  KartPad #336 now passes the content check:
   REL guard fixture built from the guard's own anchors; synthetic g6/g7
   translator fixtures generated in tests and checked by SHA-256; translated-build
   log and candidate record moved to private scratch; translator pinned as fork
