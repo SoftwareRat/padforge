@@ -1,10 +1,30 @@
-# PadForge status and overnight run (28–29 Sep 2026)
+# PadForge status
 
 Resumable record for the overnight goal loop. Source of truth for decisions and
 per-repo state is the Notion "Public Repo Proprietary-Content Audit" and its
 tracker; this file mirrors progress so work can resume after interruption.
 
-**Window:** until 07:00 JST, 29 Sep 2026. Handoff starts 06:30.
+## Loop 2: formula, KartPad 0.6.0, then every repo (started 29 Sep 09:05)
+
+Plan and owner decisions: Notion "PadForge release formula and pilot plan".
+
+- **Step 1 done (09:20).** Windows 11 VM at 16 GB / 8 cores, commands run
+  inside it; Docker Desktop runs Linux containers (image pulls work).
+- **Step 2 (in progress).** KartPad #336 now passes the content check:
+  REL guard fixture built from the guard's own anchors; synthetic g6/g7
+  translator fixtures generated in tests and checked by SHA-256; translated-build
+  log and candidate record moved to private scratch; translator pinned as fork
+  branch `kartpad-translator` (same tree). One version file, `version.json`
+  (0.6.0 / build 240), read by Android, Mac, the iOS builder and PadForge's
+  build record. Verification builds (iOS, Mac) running.
+- **Step 3 design notes.** Translated code self-registers through static
+  registrars, so a separately loaded game library can register itself if the
+  runtime exports its API. Game-derived pieces: shards, registration and
+  dispatch tables, `data_sections_init` + blobs, guest symbol table and
+  `RuntimeConfig.h` (SDA bases). Next: link the runtime without them to list
+  the exact interface.
+
+## Overnight run 28–29 Sep (complete)
 
 ## Morning handoff (06:15)
 
