@@ -25,7 +25,10 @@ each system and [docs/DECISIONS.md](docs/DECISIONS.md) for why it works this way
 
 ## All commands
 
-Python 3.9 or newer; no packages needed. From this repository:
+Python 3.9 or newer; no packages needed. On Windows PadForge downloads Git
+itself; on a Mac or Linux it uses the system's Git (`xcode-select --install`,
+or your package manager, for example `sudo apt install git`). From this
+repository:
 
 ```sh
 python3 -m padforge list                      # supported games and platforms

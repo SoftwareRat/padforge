@@ -78,6 +78,11 @@ def install(names, host, stream=None):
             if name == "git" and shutil.which("git"):
                 print(f"ok   git (system {shutil.which('git')})", file=stream)
                 continue
+            if name == "git":
+                raise RuntimeError(
+                    "Git is needed. Install it with your system's package manager "
+                    "(for example: sudo apt install git, or on a Mac: xcode-select --install), "
+                    "then run PadForge again.")
             raise RuntimeError(f"{name} {tool['version']} has no download for {host}")
         folder = _folder(name, tool)
         if _marker(folder).is_file():

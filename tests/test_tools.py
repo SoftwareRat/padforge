@@ -53,6 +53,12 @@ class ToolsTests(unittest.TestCase):
             tools.install(["tool"], "test-host", io.StringIO())
         self.assertFalse((tools.tools_root() / "tool-1/.padforge-installed").exists())
 
+    def test_missing_system_git_says_how_to_install_it(self):
+        self.lock["git"] = {"version": "2", "hosts": {}}
+        with mock.patch.object(tools.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(RuntimeError, "package manager"):
+                tools.install(["git"], "linux-x86_64", io.StringIO())
+
     def test_lock_pins_every_download_with_a_publisher_digest(self):
         lock = json.loads(tools.LOCK.read_text())["tools"]
         for name, tool in lock.items():
