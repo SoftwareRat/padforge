@@ -233,6 +233,18 @@ def backend_env(jobs):
     return env
 
 
+def read_game_version(repo):
+    """The game's single release version (version.json at the repository root), if any."""
+    try:
+        data = json.loads((Path(repo) / "version.json").read_text())
+    except (OSError, ValueError):
+        return None
+    version, build = data.get("version"), data.get("build")
+    if isinstance(version, str) and version and isinstance(build, int) and build > 0:
+        return {"version": version, "build": build}
+    return None
+
+
 def workspace_root(args, repo):
     selected = getattr(args, "workspace_root", None)
     root = selected.expanduser().resolve() if selected else (repo / "build/padforge").resolve()
@@ -302,6 +314,9 @@ def execute(args, repo, disc):
                       manifest_sha256=manifest_sha256(manifest),
                       status="running", publication="personal-only",
                       backend_validation="not-established-by-runner")
+        game_version = read_game_version(repo)
+        if game_version:
+            record["game_version"] = game_version
         atomic_json(attempt / "record.json", record)
         emit("build_started")
         print(f"Local log: {attempt / 'backend.log'}", flush=True)

@@ -118,6 +118,14 @@ class StepsTests(unittest.TestCase):
         self.assertEqual(execute(self.args, repo, disc), 0)
         self.assertEqual(seen.read_text(), "2")
 
+    def test_build_record_carries_the_game_version(self):
+        (self.repo / "version.json").write_text('{"version": "0.6.0", "build": 240}\n')
+        self.commit(STEPS)
+        repo, disc = validate(self.args)
+        self.assertEqual(execute(self.args, repo, disc), 0)
+        record, _stages = self.records()
+        self.assertEqual(record["game_version"], {"version": "0.6.0", "build": 240})
+
     def test_history_summarizes_records(self):
         repo, disc = validate(self.args)
         self.assertEqual(execute(self.args, repo, disc), 0)
