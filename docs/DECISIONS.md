@@ -118,6 +118,27 @@ Why: a player on a clean Windows PC should not have to find and install six
 developer tools by hand, and pinning keeps every player's build identical.
 Google publishes no Linux arm64 NDK, so Linux game packs build on x86_64.
 
+.NET runs with invariant globalization (`set` in the lock): the Linux run
+stopped because a plain Ubuntu has no libicu, and a system language that writes
+decimals with a comma must not change generated code.
+
+## D8. Players get a folder with a launcher, not an installer (29 Sep 2026)
+
+PadForge's release is three ZIP files: Windows (with Python's official
+embeddable package, pinned by python.org's SHA-256, so nothing else to
+install), macOS and Linux (the system Python). Each holds the same `padforge`
+package plus a launcher: `PadForge.cmd`, `PadForge.command`, `padforge.sh`.
+Starting PadForge with no command asks only what it cannot know: the game (and
+the phone type when there is a choice), the player's game file (drag it into
+the window) and the folder to save in. `player_targets` in a catalog entry is
+what makes a game appear there.
+
+Why: this is D1's "no-Python install" with nothing to sign, notarize or keep in
+step per operating system, and it reuses the tested CLI. ZIP everywhere
+because the release gate opens ZIP archives only. Unsigned launchers still meet
+SmartScreen and Gatekeeper warnings; the README says how to get past them. A
+signed desktop app is a later step if players need it.
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk

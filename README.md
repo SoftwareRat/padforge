@@ -7,8 +7,19 @@ uploaded and no game files are downloaded.
 
 ## Make a game
 
-Install [Python](https://www.python.org/downloads/) 3.11 or newer, download
-PadForge, and in its folder run for example:
+Download PadForge for your computer from the
+[latest release](https://github.com/chrissotraidis/padforge/releases/latest),
+unzip it and start it:
+
+- **Windows:** double-click `PadForge.cmd` (Python is included). If Windows
+  says it protected your PC, choose *More info*, then *Run anyway*.
+- **Mac:** double-click `PadForge.command`. If macOS blocks it, open System
+  Settings, Privacy & Security, and choose *Open Anyway*. It needs Apple's
+  command line tools (`xcode-select --install`); iPhone builds also need Xcode.
+- **Linux:** in the folder, run `sh padforge.sh` (needs Python 3.9+ and Git).
+
+PadForge asks which game, then for your own game file (drag it into the
+window) and where to save. The same thing as one command:
 
 ```
 python -m padforge make kartpad android --disc "Mario Kart Wii.wbfs"
