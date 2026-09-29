@@ -696,7 +696,7 @@ def main(argv=None):
         if state not in RUNNABLE_STATES:
             raise ValueError(f"{manifest['name']} {target_name} builds are {state} on {host_id()}")
         return execute(args, repo, disc)
-    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"PadForge: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
