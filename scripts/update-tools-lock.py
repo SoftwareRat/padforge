@@ -51,7 +51,11 @@ def main():
              if item["name"].endswith((".zip", ".tar.gz")) and "-sdk-" in item["url"]}
     rids = {"windows-arm64": "win-arm64", "windows-x86_64": "win-x64", "linux-x86_64": "linux-x64",
             "linux-arm64": "linux-arm64", "macos-arm64": "osx-arm64"}
-    tools["dotnet"] = {"version": sdk["version"], "bin": ["."], "env": {"DOTNET_ROOT": "."}, "hosts": {
+    # Invariant globalization: Linux systems without libicu can still run the
+    # SDK, and text handling is the same on every computer.
+    tools["dotnet"] = {"version": sdk["version"], "bin": ["."], "env": {"DOTNET_ROOT": "."},
+                       "set": {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1",
+                               "DOTNET_CLI_TELEMETRY_OPTOUT": "1", "DOTNET_NOLOGO": "1"}, "hosts": {
         host: {"url": files[rid]["url"], "sha512": files[rid]["hash"],
                "archive": "zip" if files[rid]["url"].endswith(".zip") else "tar.gz"}
         for host, rid in rids.items()}}

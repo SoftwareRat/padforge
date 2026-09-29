@@ -47,6 +47,12 @@ class ToolsTests(unittest.TestCase):
         tools.install(["tool"], "test-host", output)  # second run keeps the install
         self.assertIn("ok   tool 1", output.getvalue())
 
+    def test_fixed_settings_reach_the_build_environment(self):
+        self.lock["tool"]["set"] = {"DOTNET_SYSTEM_GLOBALIZATION_INVARIANT": "1"}
+        tools.install(["tool"], "test-host", io.StringIO())
+        env = tools.environment(["tool"], "test-host", {"PATH": "/usr/bin"})
+        self.assertEqual(env["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"], "1")
+
     def test_digest_mismatch_installs_nothing(self):
         self.lock["tool"]["hosts"]["test-host"]["sha256"] = "0" * 64
         with self.assertRaisesRegex(RuntimeError, "mismatch"):

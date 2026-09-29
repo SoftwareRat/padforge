@@ -127,6 +127,7 @@ def environment(names, host, base=None):
             paths.append(str(folder / relative))
         for key, relative in tool.get("env", {}).items():
             env[key] = str(folder / relative)
+        env.update(tool.get("set", {}))
     if paths:
         env["PATH"] = os.pathsep.join(paths + [env.get("PATH", "")])
     return env
