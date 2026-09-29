@@ -21,9 +21,13 @@ class PlayerSafetyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             missing = Path(folder) / "not" / "yet"
             cli.check_free_space(missing, needed_gb=0)
+            cli.check_free_space(missing, needed_gb=1)
             usage = shutil.disk_usage(folder)
             with self.assertRaisesRegex(ValueError, "GB free"):
-                cli.check_free_space(missing, needed_gb=usage.free / (1 << 30) + 1)
+                cli.check_free_space(missing, needed_gb=int(usage.free / (1 << 30)) + 2)
+
+    def test_only_kartpad_declares_its_space_need(self):
+        self.assertEqual(cli.catalog()["kartpad"]["free_space_gb"], 16)
 
     def test_certificate_failure_is_explained(self):
         error = OSError("<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed>")

@@ -458,10 +458,6 @@ def published_app(name, assets, folder):
     return path
 
 
-# A first build of a game version needs its tools (about 4 GB) and build files (about 11 GB for KartPad).
-FREE_SPACE_GB = 16
-
-
 def physical_memory():
     """Total memory in bytes, or None when it cannot be read."""
     try:
@@ -488,7 +484,11 @@ def default_jobs(cores=None, memory=None):
     return max(1, min(cores, by_memory, 16))
 
 
-def check_free_space(folder, needed_gb=FREE_SPACE_GB):
+def check_free_space(folder, needed_gb):
+    """A game's catalog entry may name the free space its first build needs
+    (KartPad: about 4 GB of tools plus 11 GB of build files)."""
+    if not needed_gb:
+        return
     existing = next(path for path in [folder, *folder.parents] if path.exists())
     free_gb = shutil.disk_usage(existing).free / (1 << 30)
     if free_gb < needed_gb:
@@ -507,7 +507,7 @@ def make(game, platform_name, disc, out, ref=None, app=None, jobs=None):
         ref, assets = latest_release(entry["repo_url"])
     source = home / "games" / f"{game}-{re.sub(r'[^A-Za-z0-9._-]', '_', ref)}"
     if not source.exists():
-        check_free_space(home)
+        check_free_space(home, entry.get("free_space_gb", 0))
         get_game(game, source, ref)
     manifest, _source = manifest_for(game, source)
     target = manifest["targets"].get(platform_name)
