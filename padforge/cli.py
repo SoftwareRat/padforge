@@ -325,7 +325,9 @@ def execute(args, repo, disc):
         workspace_identity = {name: identity[name] for name in
                               ("game", "revision", "disc_sha256", "target", "mods")}
         workspace_identity["workspace_schema"] = 1
-        key = hashlib.sha256(json.dumps(workspace_identity, sort_keys=True).encode()).hexdigest()
+        # 16 hex digits: unique enough per checkout, and short enough that deep
+        # build trees stay under Windows' 260-character path limit.
+        key = hashlib.sha256(json.dumps(workspace_identity, sort_keys=True).encode()).hexdigest()[:16]
         work = root / key / "backend"
         attempt = root / key / "runs" / uuid.uuid4().hex
         attempt.mkdir(parents=True, mode=0o700)
