@@ -41,6 +41,17 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   APKs likely did too); (2) 559 exported `func_*` HLE override names. Fixes in
   progress: export list without `func_*`; Android disc import rebuilt coreless
   with the player's own key file, like iOS (#335).
+- **Step 3, Android done (11:10).** Both content-check failures fixed: Android
+  disc import asks once for the player's own `common-key.bin` (an extracted
+  folder needs no key); the empty APK exports 0 `func_*` names and passes the
+  gate. Empty 0.6.0 APK + pack chosen in the app's Choose File screen reached an
+  active race (Luigi Circuit, lap 1/3, 60 FPS, API 36 emulator on the Mac GPU),
+  existing licence and save intact. Fixes found on the way, now D6 rules: header
+  state lives once in the app (`MKW_GAME_PACK_MODULE`, checked by KartPad's
+  `scripts/check-game-pack-state.py` in every pack build); the pack hands the
+  app its 8 wrapped original functions (pack interface v2); one pack per app
+  version. Pack build ~5 min at 8 jobs on this Mac. Next: iPhone half (empty IPA
+  + pack in `Frameworks/`), then Windows/Linux hosts (step 4).
 
 ## Overnight run 28–29 Sep (complete)
 

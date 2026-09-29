@@ -79,6 +79,31 @@ Translated ports share three recipes (WiiCompiled, Dolphin/DolRecomp,
 N64Recomp+RT64) instead of one per repo. PadForge is one app for every game,
 released on its own schedule.
 
+## D6. The player's computer builds only the game pack (29 Sep 2026)
+
+With D5, a player's Windows, Mac or Linux computer never builds the app itself.
+For a translated-code game it extracts the disc, translates it, and compiles
+one library against the published app's runtime:
+
+- Android: the Android NDK's compiler, CMake and Ninja. No Gradle, Java or
+  Android SDK. The player copies the pack to the phone and picks it in the app;
+  it loads from the app's own storage.
+- iPhone: the pack is a dylib that PadForge puts inside the empty IPA
+  (`Frameworks/`); the player's sideloading tool signs the IPA as usual.
+
+Why: it is the smallest toolset that works on all three systems, and the
+published app, its signing and its updates stay the owner's.
+
+Rule for every game pack (learned on KartPad): runtime state that lives in
+headers (C++ `inline` variables, including `thread_local` ones and statics
+inside inline functions) must exist once, in the app. A pack compiled with its
+own copies runs, but reads state the app never sets (KartPad's first pack
+aborted with "CurrentCpuContext is NULL"). The runtime declares such variables
+`extern` when `MKW_GAME_PACK_MODULE` is set, and the app references each one
+so it is always exported. Check for regressions by listing data symbols that
+both the pack and the app define; the answer must be none (a pure lookup cache
+is the only allowed exception).
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk
