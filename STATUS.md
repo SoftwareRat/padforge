@@ -27,6 +27,20 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   dispatch tables, `data_sections_init` + blobs, guest symbol table and
   `RuntimeConfig.h` (SDA bases). Next: link the runtime without them to list
   the exact interface.
+- **Step 3 progress (10:20).** Android emulator probe proved a library in app
+  storage can load and bind to one in the APK (S3). Runtime fork branch
+  `codex/game-pack` (android): `MKW_GAME_PACK=APP` builds the runtime without
+  game code, a small loader (`src/game_pack.cpp`) loads the pack named by
+  `KARTPAD_GAME_PACK`, checks its version and supplies data-init and the SDA
+  bases; eight HLE calls into specific translated functions resolve through the
+  registry. Standalone `runtime/game_pack` project builds the pack with only
+  the NDK. KartPad: launcher "Add your game pack" step, `scripts/build-android-app.sh`,
+  `scripts/build-game-pack.sh`, shared `translated-definitions.txt`. First
+  empty APK builds (47.6 MB) but the content check FAILS it: (1) Dolphin's
+  Android disc-import library carries both Wii common keys (previous public
+  APKs likely did too); (2) 559 exported `func_*` HLE override names. Fixes in
+  progress: export list without `func_*`; Android disc import rebuilt coreless
+  with the player's own key file, like iOS (#335).
 
 ## Overnight run 28–29 Sep (complete)
 
