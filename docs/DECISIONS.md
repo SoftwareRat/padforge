@@ -59,6 +59,26 @@ manifest-only change rather than a new wrapper in every repository.
   those ports, `publication.public_binaries: false` in the manifest is the
   safeguard; a gate PASS is never permission to publish a decompilation build.
 
+## D5. One release formula for every game (owner decision, 29 Sep 2026)
+
+Nothing containing game code, disc data or keys is published. Everything else
+is, in the same shape for every repo and every update: one version (the repo's
+`version.json`), assets named `<Game>-vX.Y.Z-...`, and `SHA256SUMS`.
+
+| Kind | Published | Player uses PadForge to |
+|---|---|---|
+| No game code (clean engines) | Full APK/IPA | Nothing |
+| Translated code (KartPad, BlueWake, SunPad...) | Empty app + recipe | Build the game pack from their own disc |
+| Decompilation (HarkinianPad, MaskPad...) | Recipe only | Build the whole app from public source + their ROM |
+
+Why: the translated or decompiled game code is the only part that cannot be
+shared; splitting it out keeps everything else a normal download with normal
+in-place updates. On Android the empty app keeps the owner's signing key and
+loads the pack from its own storage, so updates and saves are unaffected.
+Translated ports share three recipes (WiiCompiled, Dolphin/DolRecomp,
+N64Recomp+RT64) instead of one per repo. PadForge is one app for every game,
+released on its own schedule.
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk
