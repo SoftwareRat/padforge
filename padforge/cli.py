@@ -572,7 +572,8 @@ def start(ask=input, stream=None):
     for game, entry in sorted(catalog().items()):
         platforms = [name for name in entry.get("player_targets", []) if name != "ios" or on_mac]
         if platforms:
-            games.append((game, entry.get("manifest", {}).get("name", game), platforms))
+            name = (entry.get("manifest") or {}).get("name") or entry.get("name", game)
+            games.append((game, name, platforms))
     if not games:
         raise ValueError("no game can be made on this computer yet")
     game = choose("Game", [(game, name) for game, name, _ in games], ask, stream)
@@ -593,7 +594,8 @@ def start(ask=input, stream=None):
     out = dropped_path(answer) if answer else default
     code = make(game, target, disc.resolve() if disc else None, out.resolve())
     if code == 0:
-        print(f"Next: {catalog()[game]['repo_url']}#get-{game}", file=stream)
+        entry = catalog()[game]
+        print(f"Next: {entry.get('player_help') or entry['repo_url'] + '#get-' + game}", file=stream)
     return code
 
 

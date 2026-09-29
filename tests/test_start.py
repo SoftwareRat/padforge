@@ -12,6 +12,9 @@ CATALOG = {
     "other": {"id": "other", "repo_url": "https://github.com/example/other"},
     "romgame": {"id": "romgame", "repo_url": "https://github.com/example/romgame", "player_targets": ["ios"],
                 "player_game_file": "in-app", "manifest": {"name": "RomGame"}},
+    "repogame": {"id": "repogame", "name": "RepoGame", "repo_url": "https://github.com/example/repogame",
+                 "player_targets": ["ios"], "player_game_file": "in-app", "manifest": None,
+                 "player_help": "https://github.com/example/repogame#get-started"},
 }
 
 
@@ -42,8 +45,20 @@ class StartTests(unittest.TestCase):
 
     def test_game_file_added_in_the_app_is_not_asked_for(self):
         with tempfile.TemporaryDirectory() as folder:
-            _code, make = self.run_start(["2", folder], "macos-arm64")
+            _code, make = self.run_start(["3", folder], "macos-arm64")
         self.assertEqual(make.call_args.args[:3], ("romgame", "ios", None))
+
+    def test_game_with_manifest_in_its_repository_is_offered_with_its_help_link(self):
+        stream = io.StringIO()
+        with tempfile.TemporaryDirectory() as folder:
+            replies = iter(["2", folder])
+            with mock.patch.object(cli, "catalog", return_value=CATALOG), \
+                    mock.patch.object(cli, "host_id", return_value="macos-arm64"), \
+                    mock.patch.object(cli, "make", return_value=0) as make:
+                cli.start(lambda _prompt: next(replies), stream)
+        self.assertEqual(make.call_args.args[:3], ("repogame", "ios", None))
+        self.assertIn("2. RepoGame", stream.getvalue())
+        self.assertIn("Next: https://github.com/example/repogame#get-started", stream.getvalue())
 
     def test_dragged_paths_lose_quotes_and_escapes(self):
         self.assertEqual(cli.dropped_path('"C:/Games/My Disc.wbfs"'), Path("C:/Games/My Disc.wbfs"))
