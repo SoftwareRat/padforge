@@ -10,6 +10,8 @@ CATALOG = {
     "kartpad": {"id": "kartpad", "repo_url": "https://github.com/example/kartpad",
                 "player_targets": ["android", "ios"], "manifest": {"name": "KartPad"}},
     "other": {"id": "other", "repo_url": "https://github.com/example/other"},
+    "romgame": {"id": "romgame", "repo_url": "https://github.com/example/romgame", "player_targets": ["ios"],
+                "player_game_file": "in-app", "manifest": {"name": "RomGame"}},
 }
 
 
@@ -26,7 +28,7 @@ class StartTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             disc = Path(folder) / "My Disc.wbfs"
             disc.write_bytes(b"x")
-            code, make = self.run_start([f"'{disc}'", folder], "linux-x86_64")
+            code, make = self.run_start(["1", f"'{disc}'", folder], "linux-x86_64")
         self.assertEqual(code, 0)
         self.assertEqual(make.call_args.args[:3], ("kartpad", "android", disc.resolve()))
         self.assertEqual(make.call_args.args[3], Path(folder).resolve())
@@ -35,8 +37,13 @@ class StartTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             disc = Path(folder) / "disc.wbfs"
             disc.write_bytes(b"x")
-            _code, make = self.run_start(["2", str(disc), folder], "macos-arm64")
+            _code, make = self.run_start(["1", "2", str(disc), folder], "macos-arm64")
         self.assertEqual(make.call_args.args[1], "ios")
+
+    def test_game_file_added_in_the_app_is_not_asked_for(self):
+        with tempfile.TemporaryDirectory() as folder:
+            _code, make = self.run_start(["2", folder], "macos-arm64")
+        self.assertEqual(make.call_args.args[:3], ("romgame", "ios", None))
 
     def test_dragged_paths_lose_quotes_and_escapes(self):
         self.assertEqual(cli.dropped_path('"C:/Games/My Disc.wbfs"'), Path("C:/Games/My Disc.wbfs"))

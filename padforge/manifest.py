@@ -157,6 +157,8 @@ def catalog():
         targets = entry.get("player_targets", [])
         if not isinstance(targets, list) or not set(targets) <= {"android", "ios", "macos"}:
             raise ValueError(f"catalog/{path.name}: player_targets lists android, ios or macos")
+        if entry.get("player_game_file", "build") not in ("build", "in-app"):
+            raise ValueError(f"catalog/{path.name}: player_game_file is build or in-app")
         if entry.get("manifest") is not None:
             validate_manifest(entry["manifest"])
             if entry["manifest"]["id"] != entry["id"]:

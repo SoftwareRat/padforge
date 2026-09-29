@@ -447,6 +447,10 @@ def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
     target = manifest["targets"].get(platform_name)
     if target is None or ("command" not in target and "steps" not in target):
         raise ValueError(f"{manifest['name']} cannot be built for {platform_name} yet")
+    if not needs_build_input(manifest):
+        disc = None  # the game file is added in the app, not read by the build
+    elif disc is None:
+        raise ValueError(f"{manifest['name']} needs your own game file (--disc)")
     tools.install(target.get("tools", []), host_id())
     version = (read_game_version(source) or {}).get("version") or ref.lstrip("v")
     if target.get("published_app") and app is None:
@@ -574,16 +578,20 @@ def start(ask=input, stream=None):
     game = choose("Game", [(game, name) for game, name, _ in games], ask, stream)
     name, platforms = next((name, platforms) for id_, name, platforms in games if id_ == game)
     target = choose("Make it for", [(p, PLATFORM_LABELS.get(p, p)) for p in platforms], ask, stream)
-    while True:
-        disc = dropped_path(ask(f"Drag your own {name} game file into this window, then press Enter: "))
-        if disc.is_file():
-            break
-        print(f"No file at {disc}", file=stream)
+    disc = None
+    if catalog()[game].get("player_game_file", "build") == "in-app":
+        print(f"{name} asks for your own game file inside the app, after you install it.", file=stream)
+    else:
+        while True:
+            disc = dropped_path(ask(f"Drag your own {name} game file into this window, then press Enter: "))
+            if disc.is_file():
+                break
+            print(f"No file at {disc}", file=stream)
     default = Path.home() / "Downloads"
     default = default if default.is_dir() else Path.home()
     answer = ask(f"Save it in which folder? Press Enter for {default}: ").strip()
     out = dropped_path(answer) if answer else default
-    code = make(game, target, disc.resolve(), out.resolve())
+    code = make(game, target, disc.resolve() if disc else None, out.resolve())
     if code == 0:
         print(f"Next: {catalog()[game]['repo_url']}#get-{game}", file=stream)
     return code
@@ -678,7 +686,7 @@ def build_parser():
     make_parser = commands.add_parser("make", help="Make your own copy of a game from your game file")
     make_parser.add_argument("game")
     make_parser.add_argument("platform", help="android, ios or macos")
-    make_parser.add_argument("--disc", type=Path, required=True, help="Your own game file")
+    make_parser.add_argument("--disc", type=Path, help="Your own game file (when the build reads it)")
     make_parser.add_argument("--out", type=Path, default=Path.cwd(), help="Where to save the result")
     make_parser.add_argument("--jobs", type=int, choices=range(1, 17), default=4)
     make_parser.add_argument("--ref", help=argparse.SUPPRESS)
@@ -733,8 +741,8 @@ def main(argv=None):
         if args.action == "get":
             return get_game(args.game, args.dest.expanduser().resolve(), args.ref)
         if args.action == "make":
-            disc = args.disc.expanduser().resolve()
-            if not disc.is_file():
+            disc = args.disc.expanduser().resolve() if args.disc else None
+            if disc is not None and not disc.is_file():
                 raise ValueError(f"game file not found: {disc}")
             return make(args.game, args.platform, disc, args.out.expanduser().resolve(), args.ref,
                         args.app.expanduser().resolve() if args.app else None, args.jobs)

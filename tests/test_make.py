@@ -34,7 +34,7 @@ class MakeTests(unittest.TestCase):
             source = root / "home/games/game-v1.2.3"
             source.mkdir(parents=True)
             (source / "version.json").write_text(json.dumps({"version": "1.2.3", "build": 7}))
-            manifest = {"name": "Game", "targets": {"android": {
+            manifest = {"name": "Game", "inputs": [{"type": "disc"}], "targets": {"android": {
                 "published_app": "Game-v{version}-android.apk", "steps": [], "tools": []}}}
             built = root / "built.so"
             built.write_bytes(b"pack")
@@ -55,6 +55,17 @@ class MakeTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(fetch.call_args.args[0], "Game-v1.2.3-android.apk")
             self.assertTrue((root / "out/Game-v1.2.3-android-personal.so").is_file())
+            manifest["inputs"] = [{"type": "rom", "when": "in-app"}]
+            with mock.patch.object(cli, "catalog", return_value={"game": {"repo_url": "https://x/game"}}), \
+                    mock.patch.object(cli.tools, "tools_root", return_value=root / "home/tools"), \
+                    mock.patch.object(cli.tools, "install"), \
+                    mock.patch.object(cli, "latest_release", return_value=("v1.2.3", {})), \
+                    mock.patch.object(cli, "manifest_for", return_value=(manifest, "repository")), \
+                    mock.patch.object(cli, "git", return_value="0" * 40), \
+                    mock.patch.object(cli, "published_app", return_value=root / "app.apk"), \
+                    mock.patch.object(cli, "execute", side_effect=execute) as run:
+                self.assertEqual(cli.make("game", "android", None, root / "out"), 0)
+            self.assertIsNone(run.call_args.args[2])
 
 
 if __name__ == "__main__":
