@@ -1,22 +1,39 @@
 # PadForge
 
-Build your own copy of a supported Pad game on your own computer, from your own
-disc or ROM. PadForge checks your computer, runs the game's own builder, shows
-progress, and audits the result. Nothing is uploaded and no game files are
-downloaded.
+Make your own copy of a Pad game on your Windows, Mac or Linux computer, from
+your own disc or ROM, in one command. PadForge downloads the tools it needs,
+runs the game's own builder, and checks the result. Nothing from your disc is
+uploaded and no game files are downloaded.
 
-**Experimental.** No complete game build through PadForge has been accepted
-yet. Public game-app distribution is paused. See [STATUS.md](STATUS.md) and
-[docs/DECISIONS.md](docs/DECISIONS.md).
+## Make a game
 
-## Commands
+Install [Python](https://www.python.org/downloads/) 3.11 or newer, download
+PadForge, and in its folder run for example:
+
+```
+python -m padforge make kartpad android --disc "Mario Kart Wii.wbfs"
+```
+
+PadForge picks the game's latest release, downloads its source, its pinned
+tools (into its own folder, never system-wide) and its published app, then
+builds your copy and saves it where you run it (`--out` to choose). The game's
+README says what to do with the result, for example KartPad's
+[Get KartPad](https://github.com/chrissotraidis/kartpad#get-kartpad).
+
+**Experimental.** See [STATUS.md](STATUS.md) for what has been verified on
+each system and [docs/DECISIONS.md](docs/DECISIONS.md) for why it works this way.
+
+## All commands
 
 Python 3.9 or newer; no packages needed. From this repository:
 
 ```sh
 python3 -m padforge list                      # supported games and platforms
+python3 -m padforge make kartpad android --disc 'your disc.wbfs'   # the one-step path
 python3 -m padforge ui                        # local browser page (same commands)
 python3 -m padforge doctor kartpad            # check this computer (installs nothing)
+python3 -m padforge tools kartpad --target android --repo /path/to/kartpad   # get pinned tools
+python3 -m padforge get kartpad /path/to/kartpad   # download a game's source
 python3 -m padforge doctor bluewake --repo /path/to/bluewake
 python3 -m padforge audit path/to/file-or-folder   # release gate
 python3 -m padforge history --repo /path/to/game-repo   # recorded builds
@@ -31,9 +48,9 @@ Use `--target` to choose a platform the game declares (default `ios`),
 `--source-only`/`--no-mods` where the game supports them, and `--jobs 1-8`.
 
 Builds run on the platforms each game marks *verified* or *experimental*;
-`list` shows the rest as *planned*. Today every runnable target is an
-iPhone/iPad build on an Apple Silicon Mac. Windows and Linux support is planned;
-see the decision record for what has been tested.
+`list` shows the rest as *planned*. Android game packs build on Windows (x64
+and ARM64), Linux (x86_64) and macOS; iPhone/iPad builds need an Apple Silicon
+Mac. See [STATUS.md](STATUS.md) for what has been verified on each.
 
 The catalog covers the Pad ports whose repositories declare a build. Most
 manifests are `draft-untested` until a complete build has run through PadForge;
