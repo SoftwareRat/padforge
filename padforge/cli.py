@@ -17,7 +17,6 @@ import signal
 import subprocess
 import sys
 import time
-import urllib.request
 import uuid
 
 from . import __version__, gate, tools
@@ -410,14 +409,28 @@ def execute(args, repo, disc):
         record.update(status=status, exit_code=code)
         atomic_json(attempt / "record.json", record)
         emit("build_" + status, exit_code=code)
+        if status == "failed":
+            print_log_tail(attempt / "backend.log")
         print(f"Build record: {attempt / 'record.json'}")
         return code if code >= 0 else 128 - code
+
+
+def print_log_tail(log, lines=15):
+    """Show the end of the backend log, where the reason for a failure is."""
+    try:
+        tail = log.read_text(errors="replace").splitlines()[-lines:]
+    except OSError:
+        return
+    if tail:
+        print(f"Last lines of {log}:", file=sys.stderr)
+        for line in tail:
+            print("  " + line[-300:], file=sys.stderr)
 
 
 def latest_release(repo_url):
     """The game's latest GitHub release: tag and downloadable assets."""
     path = repo_url.removeprefix("https://github.com/").removesuffix(".git")
-    with urllib.request.urlopen(f"https://api.github.com/repos/{path}/releases/latest") as response:
+    with tools.open_url(f"https://api.github.com/repos/{path}/releases/latest") as response:
         data = json.load(response)
     return data["tag_name"], {asset["name"]: asset["browser_download_url"] for asset in data["assets"]}
 
@@ -426,7 +439,7 @@ def published_app(name, assets, folder):
     """Download a release asset and check it against the release's SHA256SUMS."""
     if name not in assets or "SHA256SUMS" not in assets:
         raise ValueError(f"the release has no {name} with SHA256SUMS")
-    with urllib.request.urlopen(assets["SHA256SUMS"]) as response:
+    with tools.open_url(assets["SHA256SUMS"]) as response:
         sums = dict(reversed(line.split(maxsplit=1)) for line in response.read().decode().splitlines()
                     if line.strip())
     expected = sums.get(name) or sums.get("*" + name)
@@ -436,7 +449,7 @@ def published_app(name, assets, folder):
     path = folder / name
     if not path.is_file() or digest(path) != expected:
         partial = path.with_name(path.name + ".partial")
-        with urllib.request.urlopen(assets[name]) as response, partial.open("wb") as handle:
+        with tools.open_url(assets[name]) as response, partial.open("wb") as handle:
             shutil.copyfileobj(response, handle)
         if digest(partial) != expected:
             partial.unlink()
@@ -445,7 +458,45 @@ def published_app(name, assets, folder):
     return path
 
 
-def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
+# A first build of a game version needs its tools (about 4 GB) and build files (about 11 GB for KartPad).
+FREE_SPACE_GB = 16
+
+
+def physical_memory():
+    """Total memory in bytes, or None when it cannot be read."""
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            class Status(ctypes.Structure):
+                _fields_ = [("length", ctypes.c_ulong), ("load", ctypes.c_ulong)] + \
+                    [(name, ctypes.c_ulonglong) for name in ("total", "free", "page_total", "page_free",
+                                                             "virtual_total", "virtual_free", "extended")]
+            status = Status(length=ctypes.sizeof(Status))
+            return status.total if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)) else None
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def default_jobs(cores=None, memory=None):
+    """One compile job per CPU core, at most one per 1.5 GB of memory (KartPad's largest
+    translated file needs about 1 GB to compile), and at most 16."""
+    cores = cores or os.cpu_count() or 4
+    memory = memory if memory is not None else physical_memory()
+    by_memory = int(memory / (1.5 * (1 << 30))) if memory else 4
+    return max(1, min(cores, by_memory, 16))
+
+
+def check_free_space(folder, needed_gb=FREE_SPACE_GB):
+    existing = next(path for path in [folder, *folder.parents] if path.exists())
+    free_gb = shutil.disk_usage(existing).free / (1 << 30)
+    if free_gb < needed_gb:
+        raise ValueError(f"PadForge needs about {needed_gb} GB free for this build, but the drive with "
+                         f"{folder} has {free_gb:.1f} GB free. Free up space and run PadForge again.")
+
+
+def make(game, platform_name, disc, out, ref=None, app=None, jobs=None):
     """The player's command: from their own game file to their own copy, in one step."""
     entry = catalog().get(game)
     if entry is None:
@@ -456,6 +507,7 @@ def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
         ref, assets = latest_release(entry["repo_url"])
     source = home / "games" / f"{game}-{re.sub(r'[^A-Za-z0-9._-]', '_', ref)}"
     if not source.exists():
+        check_free_space(home)
         get_game(game, source, ref)
     manifest, _source = manifest_for(game, source)
     target = manifest["targets"].get(platform_name)
@@ -471,11 +523,16 @@ def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
         name = target["published_app"].format(version=version)
         print(f"Downloading the published {name}", flush=True)
         app = published_app(name, assets, home / "apps" / game)
+    jobs = jobs or default_jobs()
+    print(f"Building with {jobs} parallel jobs", flush=True)
     args = argparse.Namespace(game=game, repo=source, revision=git(source, "rev-parse", "HEAD"),
                               disc=disc, target=platform_name, workspace_root=None, jobs=jobs,
                               source_only=False, no_mods=False, app=app)
     code = execute(args, source, disc)
     if code != 0:
+        if code != 130:
+            print(f"\nThe build stopped; the lines above say why. For help, post them with your computer "
+                  f"type (Windows, Mac or Linux) at {entry['repo_url']}/issues", file=sys.stderr)
         return code
     out.mkdir(parents=True, exist_ok=True)
     result = out / f"{manifest['name']}-v{version}-{platform_name}-personal{args.output_path.suffix}"
@@ -704,7 +761,8 @@ def build_parser():
     make_parser.add_argument("platform", help="android, ios or macos")
     make_parser.add_argument("--disc", type=Path, help="Your own game file (when the build reads it)")
     make_parser.add_argument("--out", type=Path, default=Path.cwd(), help="Where to save the result")
-    make_parser.add_argument("--jobs", type=int, choices=range(1, 17), default=4)
+    make_parser.add_argument("--jobs", type=int, choices=range(1, 17),
+                             help="Parallel compile jobs (default: from this computer's cores and memory)")
     make_parser.add_argument("--ref", help=argparse.SUPPRESS)
     make_parser.add_argument("--app", type=Path, help=argparse.SUPPRESS)
     manifest_parser = commands.add_parser("check-manifest", help="Validate a padforge.json file")
