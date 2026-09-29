@@ -1,8 +1,11 @@
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from padforge import cli
 from padforge.cli import published_app
 
 
@@ -22,6 +25,36 @@ class PublishedAppTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "does not match"):
                 published_app(app.name, assets, root / "cache")
             self.assertFalse((root / "cache" / app.name).exists())
+
+
+class MakeTests(unittest.TestCase):
+    def test_player_path_names_the_published_app_and_result_by_version(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "home/games/game-v1.2.3"
+            source.mkdir(parents=True)
+            (source / "version.json").write_text(json.dumps({"version": "1.2.3", "build": 7}))
+            manifest = {"name": "Game", "targets": {"android": {
+                "published_app": "Game-v{version}-android.apk", "steps": [], "tools": []}}}
+            built = root / "built.so"
+            built.write_bytes(b"pack")
+
+            def execute(args, _repo, _disc):
+                args.output_path = built
+                return 0
+
+            with mock.patch.object(cli, "catalog", return_value={"game": {"repo_url": "https://x/game"}}), \
+                    mock.patch.object(cli.tools, "tools_root", return_value=root / "home/tools"), \
+                    mock.patch.object(cli.tools, "install"), \
+                    mock.patch.object(cli, "latest_release", return_value=("v1.2.3", {})), \
+                    mock.patch.object(cli, "manifest_for", return_value=(manifest, "repository")), \
+                    mock.patch.object(cli, "git", return_value="0" * 40), \
+                    mock.patch.object(cli, "published_app", return_value=root / "app.apk") as fetch, \
+                    mock.patch.object(cli, "execute", side_effect=execute):
+                code = cli.make("game", "android", root / "disc.iso", root / "out")
+            self.assertEqual(code, 0)
+            self.assertEqual(fetch.call_args.args[0], "Game-v1.2.3-android.apk")
+            self.assertTrue((root / "out/Game-v1.2.3-android-personal.so").is_file())
 
 
 if __name__ == "__main__":

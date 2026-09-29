@@ -448,7 +448,7 @@ def make(game, platform_name, disc, out, ref=None, app=None, jobs=4):
     if target is None or ("command" not in target and "steps" not in target):
         raise ValueError(f"{manifest['name']} cannot be built for {platform_name} yet")
     tools.install(target.get("tools", []), host_id())
-    version = read_game_version(source) or ref.lstrip("v")
+    version = (read_game_version(source) or {}).get("version") or ref.lstrip("v")
     if target.get("published_app") and app is None:
         name = target["published_app"].format(version=version)
         print(f"Downloading the published {name}", flush=True)
