@@ -1,9 +1,127 @@
-name: CI
-on: [push]
+name: KartPad iOS macOS Runner
+
+on:
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 60
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Build Dependencies
+        run: |
+          set -euo pipefail
+
+          brew install ninja cmake
+
+          echo "=== Environment ==="
+          echo "macOS:"
+          sw_vers
+
+          echo
+          echo "Xcode:"
+          xcodebuild -version
+
+          echo
+          echo "Python:"
+          python3 --version
+
+          echo
+          echo "CMake:"
+          cmake --version
+
+          echo
+          echo "Ninja:"
+          ninja --version
+
+      - name: Setup cloudflared
+        uses: AnimMouse/setup-cloudflared@v2
+
+      - name: Install WebSSH
+        run: |
+          python3 -m pip install --user webssh
+
+      - name: Start WebSSH
+        run: |
+          set -euo pipefail
+
+          python3 -m wssh \
+            --address=127.0.0.1 \
+            --port=8080 \
+            > /tmp/webssh.log 2>&1 &
+
+          echo $! > /tmp/webssh.pid
+
+          sleep 3
+
+          echo "=== WebSSH ==="
+          cat /tmp/webssh.log
+
+      - name: Start TryCloudflare Tunnel
+        run: |
+          set -euo pipefail
+
+          cloudflared tunnel \
+            --url http://127.0.0.1:8080 \
+            > /tmp/cloudflared.log 2>&1 &
+
+          echo $! > /tmp/cloudflared.pid
+
+          echo "Waiting for Cloudflare tunnel..."
+
+          for i in {1..30}; do
+            if grep -q "trycloudflare.com" /tmp/cloudflared.log; then
+              break
+            fi
+
+            sleep 1
+          done
+
+          echo
+          echo "=========================================="
+          echo "        WEBSSH ACCESS"
+          echo "=========================================="
+          grep -oE 'https://[^ ]+\.trycloudflare\.com' \
+            /tmp/cloudflared.log || true
+          echo "=========================================="
+          echo
+
+          cat /tmp/cloudflared.log
+
+      - name: Interactive macOS Session
+        run: |
+          echo
+          echo "=========================================="
+          echo " macOS RUNNER READY"
+          echo "=========================================="
+          echo
+          echo "User:"
+          whoami
+          echo
+          echo "Hostname:"
+          hostname
+          echo
+          echo "Home:"
+          echo "$HOME"
+          echo
+          echo "Working directory:"
+          pwd
+          echo
+          echo "=========================================="
+          echo "The runner will remain available for 55 minutes."
+          echo "=========================================="
+          echo
+
+          sleep 3300
