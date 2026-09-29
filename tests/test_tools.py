@@ -59,6 +59,30 @@ class ToolsTests(unittest.TestCase):
             tools.install(["tool"], "test-host", io.StringIO())
         self.assertFalse((tools.tools_root() / "tool-1/.padforge-installed").exists())
 
+    def test_links_in_zip_archives_become_links(self):
+        archive = self.root / "linked.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            real = zipfile.ZipInfo("t/bin/clang-21")
+            real.external_attr = 0o755 << 16
+            bundle.writestr(real, "#!/bin/sh\necho real\n")
+            link = zipfile.ZipInfo("t/bin/clang")
+            link.external_attr = (0o120777) << 16
+            bundle.writestr(link, "clang-21")
+        folder = self.root / "out"
+        tools._extract_zip(archive, folder)
+        self.assertEqual((folder / "t/bin/clang").read_text(), "#!/bin/sh\necho real\n")
+        if os.name != "nt":
+            self.assertTrue((folder / "t/bin/clang").is_symlink())
+
+    def test_links_may_not_leave_the_tool_folder(self):
+        archive = self.root / "escape.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            link = zipfile.ZipInfo("t/evil")
+            link.external_attr = (0o120777) << 16
+            bundle.writestr(link, "../../etc/passwd")
+        with self.assertRaisesRegex(RuntimeError, "leaves the tool folder"):
+            tools._extract_zip(archive, self.root / "out2")
+
     def test_missing_system_git_says_how_to_install_it(self):
         self.lock["git"] = {"version": "2", "hosts": {}}
         with mock.patch.object(tools.shutil, "which", return_value=None):

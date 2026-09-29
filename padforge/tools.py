@@ -51,12 +51,32 @@ def _download(entry, destination, stream):
 
 
 def _extract_zip(archive, folder):
+    links = []
     with zipfile.ZipFile(archive) as bundle:
         for info in bundle.infolist():
-            path = bundle.extract(info, folder)
             mode = info.external_attr >> 16
+            if stat.S_ISLNK(mode):
+                # zipfile would write the link as a small text file (the NDK's
+                # clang is a link to clang-NN); make real links afterwards.
+                links.append((info.filename, bundle.read(info).decode()))
+                continue
+            path = bundle.extract(info, folder)
             if mode & 0o111 and os.name != "nt":
                 os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    root = Path(folder).resolve()
+    for name, target in links:
+        link = Path(folder) / name
+        source = (link.parent / target).resolve()
+        if Path(target).is_absolute() or not source.is_relative_to(root):
+            raise RuntimeError(f"link {name} -> {target} leaves the tool folder; nothing was installed")
+        link.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.symlink(target, link, target_is_directory=source.is_dir())
+        except OSError:  # Windows without link permission
+            if source.is_dir():
+                shutil.copytree(source, link)
+            else:
+                shutil.copy2(source, link)
 
 
 def _extract_tar(archive, folder):
