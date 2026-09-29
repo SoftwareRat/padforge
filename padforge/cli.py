@@ -467,7 +467,9 @@ def get_game(game, dest, ref=None):
     if shutil.which("git") is None:
         tools.install(["git"], host_id())
         env = tools.environment(["git"], host_id())
-    argv = ["git", "clone"] + (["--branch", ref] if ref else []) + [entry["repo_url"], str(dest)]
+    # Windows looks programs up on the parent's PATH, so resolve Git first.
+    git_path = shutil.which("git", path=env.get("PATH"))
+    argv = [git_path, "clone"] + (["--branch", ref] if ref else []) + [entry["repo_url"], str(dest)]
     subprocess.run(argv, check=True, env=env)
     print(f"{game} source in {dest}")
     return 0
