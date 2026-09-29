@@ -9,15 +9,27 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # ============================================================
+      # Repository
+      # ============================================================
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
+      # ============================================================
+      # Python
+      # ============================================================
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      # ============================================================
+      # Build tools
+      # ============================================================
 
       - name: Install Build Dependencies
         run: |
@@ -25,9 +37,17 @@ jobs:
 
           brew install ninja cmake
 
-          echo "=== Environment ==="
+          echo "=========================================="
+          echo "Environment"
+          echo "=========================================="
+
+          echo
           echo "macOS:"
           sw_vers
+
+          echo
+          echo "Architecture:"
+          uname -m
 
           echo
           echo "Xcode:"
@@ -45,18 +65,49 @@ jobs:
           echo "Ninja:"
           ninja --version
 
+      # ============================================================
+      # cloudflared
+      # ============================================================
+
       - name: Setup cloudflared
         uses: AnimMouse/setup-cloudflared@v2
 
+      - name: Check cloudflared
+        run: |
+          set -euo pipefail
+
+          cloudflared --version
+
+      # ============================================================
+      # WebSSH
+      # ============================================================
+
       - name: Install WebSSH
         run: |
+          set -euo pipefail
+
           python3 -m pip install --user webssh
+
+          # pip --user installs the executable here
+          echo "$HOME/Library/Python/3.11/bin" >> "$GITHUB_PATH"
 
       - name: Start WebSSH
         run: |
           set -euo pipefail
 
-          python3 -m wssh \
+          WEBSSH_BIN="$HOME/Library/Python/3.11/bin/wssh"
+
+          if [ ! -x "$WEBSSH_BIN" ]; then
+            echo "::error::wssh executable not found at $WEBSSH_BIN"
+            echo
+            echo "Installed files:"
+            find "$HOME/Library/Python/3.11" -maxdepth 3 -type f 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "Starting WebSSH..."
+
+          "$WEBSSH_BIN" \
             --address=127.0.0.1 \
             --port=8080 \
             > /tmp/webssh.log 2>&1 &
@@ -65,12 +116,31 @@ jobs:
 
           sleep 3
 
-          echo "=== WebSSH ==="
-          cat /tmp/webssh.log
+          echo
+          echo "=========================================="
+          echo "WebSSH"
+          echo "=========================================="
+
+          cat /tmp/webssh.log || true
+
+          echo
+          echo "Listening ports:"
+          lsof -nP -iTCP:8080 -sTCP:LISTEN || true
+
+          if ! lsof -nP -iTCP:8080 -sTCP:LISTEN >/dev/null 2>&1; then
+            echo "::error::WebSSH is not listening on port 8080."
+            exit 1
+          fi
+
+      # ============================================================
+      # TryCloudflare Quick Tunnel
+      # ============================================================
 
       - name: Start TryCloudflare Tunnel
         run: |
           set -euo pipefail
+
+          echo "Starting TryCloudflare Quick Tunnel..."
 
           cloudflared tunnel \
             --url http://127.0.0.1:8080 \
@@ -78,10 +148,16 @@ jobs:
 
           echo $! > /tmp/cloudflared.pid
 
-          echo "Waiting for Cloudflare tunnel..."
+          echo "Waiting for TryCloudflare URL..."
 
-          for i in {1..30}; do
-            if grep -q "trycloudflare.com" /tmp/cloudflared.log; then
+          URL=""
+
+          for i in {1..60}; do
+            URL="$(grep -oE 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' \
+              /tmp/cloudflared.log \
+              | head -n 1 || true)"
+
+            if [ -n "$URL" ]; then
               break
             fi
 
@@ -93,36 +169,99 @@ jobs:
           echo "        WEBSSH ACCESS"
           echo "=========================================="
 
-          grep -oE 'https://[^ ]+\.trycloudflare\.com' \
-            /tmp/cloudflared.log || true
+          if [ -z "$URL" ]; then
+            echo
+            echo "::error::Could not obtain TryCloudflare URL."
+            echo
+            echo "Cloudflared log:"
+            cat /tmp/cloudflared.log
+            exit 1
+          fi
 
-          echo "=========================================="
           echo
+          echo "$URL"
+          echo
+          echo "=========================================="
 
-          cat /tmp/cloudflared.log
+          echo "WEBSSH_URL=$URL" >> "$GITHUB_ENV"
 
-      - name: Interactive macOS Session
+      # ============================================================
+      # Runner information
+      # ============================================================
+
+      - name: Show Runner Information
         run: |
           echo
           echo "=========================================="
           echo "        macOS RUNNER READY"
           echo "=========================================="
+
+          echo
+          echo "WebSSH:"
+          echo "$WEBSSH_URL"
+
           echo
           echo "User:"
           whoami
+
           echo
           echo "Hostname:"
           hostname
+
           echo
           echo "Home:"
           echo "$HOME"
+
           echo
           echo "Working directory:"
           pwd
+
+          echo
+          echo "Architecture:"
+          uname -m
+
+          echo
+          echo "macOS:"
+          sw_vers -productVersion
+
+          echo
+          echo "Xcode:"
+          xcodebuild -version
+
           echo
           echo "=========================================="
           echo " Runner available for 55 minutes"
           echo "=========================================="
+
+      # ============================================================
+      # Keep runner alive
+      # ============================================================
+
+      - name: Interactive macOS Session
+        run: |
+          echo
+          echo "Waiting for interactive session..."
+          echo
+          echo "Open the WebSSH URL shown above."
+          echo
+          echo "Runner will remain alive for 55 minutes."
           echo
 
           sleep 3300
+
+      # ============================================================
+      # Cleanup
+      # ============================================================
+
+      - name: Stop Services
+        if: always()
+        run: |
+          echo "Stopping services..."
+
+          if [ -f /tmp/cloudflared.pid ]; then
+            kill "$(cat /tmp/cloudflared.pid)" 2>/dev/null || true
+          fi
+
+          if [ -f /tmp/webssh.pid ]; then
+            kill "$(cat /tmp/webssh.pid)" 2>/dev/null || true
+          fi
