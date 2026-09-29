@@ -456,6 +456,23 @@ def doctor(game, target_name, repo=None, stream=None):
     return 1 if problems else 0
 
 
+def get_game(game, dest, ref=None):
+    """Clone a catalogued game's source; its build bootstrap fetches the rest."""
+    entry = catalog().get(game)
+    if entry is None:
+        raise ValueError(f"unknown game {game}; see padforge list")
+    if dest.exists() and any(dest.iterdir()):
+        raise ValueError(f"{dest} is not empty")
+    env = dict(os.environ)
+    if shutil.which("git") is None:
+        tools.install(["git"], host_id())
+        env = tools.environment(["git"], host_id())
+    argv = ["git", "clone"] + (["--branch", ref] if ref else []) + [entry["repo_url"], str(dest)]
+    subprocess.run(argv, check=True, env=env)
+    print(f"{game} source in {dest}")
+    return 0
+
+
 def list_games(stream=None):
     stream = stream or sys.stdout
     for game, entry in sorted(catalog().items()):
@@ -521,6 +538,10 @@ def build_parser():
     tools_parser.add_argument("game")
     tools_parser.add_argument("--target", default="android")
     tools_parser.add_argument("--repo", type=Path)
+    get_parser = commands.add_parser("get", help="Download a game's source (installs Git if needed)")
+    get_parser.add_argument("game")
+    get_parser.add_argument("dest", type=Path)
+    get_parser.add_argument("--ref", help="Branch or tag (default: the repository's default branch)")
     manifest_parser = commands.add_parser("check-manifest", help="Validate a padforge.json file")
     manifest_parser.add_argument("path", type=Path)
     audit_parser = commands.add_parser("audit", help="Run the release gate on files or folders")
@@ -566,6 +587,8 @@ def main(argv=None):
             tools.install(target.get("tools", []), host_id())
             print(f"Tools ready in {tools.tools_root()}")
             return 0
+        if args.action == "get":
+            return get_game(args.game, args.dest.expanduser().resolve(), args.ref)
         if args.action == "check-manifest":
             path = args.path / "padforge.json" if args.path.is_dir() else args.path
             data = load_manifest(path)
