@@ -79,6 +79,26 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
   launcher and a guided start (D8); Windows and Linux downloads checked. KartPad
   v0.6.0 and PadForge v0.1.0 staged and gate-checked. Waiting on the iPhone
   race (the phone must be locked once, or the UI Automation passcode entered).
+- **Published (17:40).** iPhone gate PASS (PadForge-made IPA raced on the
+  iPhone 14); KartPad v0.6.0 and PadForge v0.1.0 released and verified by
+  anonymous download; pinned KartPad issue #338.
+- **Step 7 to 9 (18:30).** D9: iPhone builds target iOS 15 (Xcode 27).
+  PadForge: games whose file is added in the app need no `--disc`.
+  - BlueWake: formula PR #4 (empty IPA via `build.sh --app-only`; the module
+    via `--app`); `padforge make bluewake ios` compiling the module.
+  - SunPad: formula PR #50 (app-only build, module added to the published
+    IPA, "no game code yet" message); build after BlueWake.
+  - HarkinianPad: #30 and #31 merged (0.2.0, recipe only); play-test next.
+  - Recipe-only PRs: MaskPad #10, SpaghettiPad #20, StarshipPad #16,
+    BallPad #9, BellPad #17, BrawlerPad #9 (fix: the recipe built an app
+    that cannot run on a device).
+  - Open engines released: DevilTouch v1.5.5-preview.1, VaultPad
+    v0.1.0-preview.1 (all assets pass the content check).
+  - PaperBoat #1 and PaperPad #11 merged (Torch URL); BananaPad, SnapPad and
+    DinoPad still pin an older PaperPad.
+  - Owner calls: N64 split vs recipe-only, HarkinianPad #28, SnapPad,
+    GalaxyPad and F0X gate policy, UTP, KidPad listing, AltStore #5, CTRPad
+    Actions billing.
 
 ## Overnight run 28–29 Sep (complete)
 
