@@ -531,8 +531,8 @@ def doctor(game, target_name, repo=None, stream=None):
     return 1 if problems else 0
 
 
-PLATFORM_LABELS = {"android": "Android phone or tablet (APK)",
-                   "ios": "iPhone or iPad (IPA; needs this Mac)"}
+PLATFORM_LABELS = {"android": "Android phone or tablet",
+                   "ios": "iPhone or iPad (needs this Mac)"}
 
 
 def dropped_path(text):
