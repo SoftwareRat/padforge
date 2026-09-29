@@ -104,6 +104,20 @@ so it is always exported. Check for regressions by listing data symbols that
 both the pack and the app define; the answer must be none (a pure lookup cache
 is the only allowed exception).
 
+## D7. PadForge downloads its own pinned tools (29 Sep 2026)
+
+`padforge tools GAME --target TARGET` installs what that target lists (Git on
+Windows, .NET 8, CMake, Ninja, the Android NDK, nodtool) into PadForge's own
+folder (`~/.padforge/tools`), never system-wide. Every download is pinned in
+`padforge/tools.lock.json` with the publisher's own digest (GitHub release
+digests, CMake's SHA-256 list, Google's SDK index, Microsoft's release
+metadata); `scripts/update-tools-lock.py` regenerates it. Builds get the tools
+first on PATH plus `ANDROID_NDK_ROOT` and `DOTNET_ROOT`.
+
+Why: a player on a clean Windows PC should not have to find and install six
+developer tools by hand, and pinning keeps every player's build identical.
+Google publishes no Linux arm64 NDK, so Linux game packs build on x86_64.
+
 ## S1. iPhone/iPad module without Xcode or Apple's SDK: plausible, partly verified
 
 Test (BlueWake, private scratch, nothing committed): one real translated chunk

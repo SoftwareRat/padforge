@@ -14,11 +14,13 @@ import string
 SCHEMA_VERSION = 1
 KINDS = {"disc-translation", "emulator-shell", "decomp-patches", "upstream-engine", "clean-engine"}
 STATUSES = {"draft-untested", "experimental", "supported", "retired"}
-HOSTS = {"macos-arm64", "macos-x86_64", "linux-x86_64", "linux-arm64", "windows-x86_64"}
+HOSTS = {"macos-arm64", "macos-x86_64", "linux-x86_64", "linux-arm64", "windows-x86_64", "windows-arm64"}
 HOST_STATES = {"verified", "experimental", "planned", "unsupported"}
 RUNNABLE_STATES = {"verified", "experimental"}
 TARGETS = {"ios", "macos", "android", "windows", "linux"}
-PLACEHOLDERS = {"repo", "disc", "work", "output", "jobs"}
+# {app}: the published app a game pack links against (padforge build --app).
+# {python}: the Python running PadForge (Windows has no python3 command).
+PLACEHOLDERS = {"repo", "disc", "work", "output", "jobs", "app", "python"}
 CHECKS = {"bluewake-ipa", "kartpad-ipa", "ipa", "none"}
 INPUT_TIMES = {"build", "in-app"}
 CATALOG = Path(__file__).resolve().parent.parent / "catalog"
@@ -91,6 +93,12 @@ def validate_manifest(data):
                      f"{where}: steps targets do not support modes or options yet")
         _require(not runnable or "command" in target or "steps" in target,
                  f"{where} has a runnable host but no command or steps")
+        if "tools" in target:
+            from .tools import lock
+            known = lock()
+            _require(isinstance(target["tools"], list)
+                     and all(isinstance(item, str) and item in known for item in target["tools"]),
+                     f"{where}.tools must name tools from PadForge's tool lock: {sorted(known)}")
         modes = target.get("modes", {"full": []})
         _require(isinstance(modes, dict) and "full" in modes, f"{where}.modes must include full")
         for mode, extra in modes.items():

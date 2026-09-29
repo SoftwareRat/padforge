@@ -18,7 +18,7 @@ import sys
 import time
 import uuid
 
-from . import __version__, gate
+from . import __version__, gate, tools
 from .manifest import (RUNNABLE_STATES, catalog, expand, host_id, load_manifest,
                        manifest_for, manifest_sha256, needs_build_input)
 from .package import validate_ipa
@@ -45,8 +45,20 @@ def atomic_json(path, value):
 @contextlib.contextmanager
 def workspace_lock(path):
     # Kernel releases the lock on exit/crash; do not delete the lock file.
-    import fcntl  # POSIX only; builds are not supported natively on Windows yet.
     with path.open("a") as stream:
+        if os.name == "nt":
+            import msvcrt
+            try:
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                raise ValueError("Another PadForge process is using this checkout") from None
+            try:
+                yield
+            finally:
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+            return
+        import fcntl
         try:
             fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
@@ -112,8 +124,7 @@ def validate(args):
 
 def command(args, repo, disc, work, output):
     _manifest, _name, target = selection(args, repo)
-    values = {"repo": str(repo), "disc": str(disc) if disc else "", "work": str(work),
-              "output": str(output), "jobs": str(args.jobs)}
+    values = placeholder_values(args, repo, disc, work, output)
     if "steps" in target:
         return [expand(step["command"], values) for step in target["steps"]]
     mode = "source-only" if args.source_only else "full"
@@ -166,8 +177,10 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append
         with log_path.open("ab" if append else "wb") as log:
             if before_spawn is not None:
                 before_spawn()
+            group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+                     else {"start_new_session": True})
             process = subprocess.Popen(argv, cwd=cwd, stdout=log, env=env,
-                                       stderr=subprocess.STDOUT, start_new_session=True)
+                                       stderr=subprocess.STDOUT, **group)
             last_progress = time.monotonic()
             while process.poll() is None:
                 relay()
@@ -178,7 +191,12 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append
             drain()
             return process.returncode, False
     except KeyboardInterrupt:
-        if process is not None:
+        if process is not None and os.name == "nt":
+            # Stop the backend and everything it started.
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)], capture_output=True)
+            process.wait()
+            drain()
+        elif process is not None:
             # BlueWake's stage wrapper forwards TERM to its own child session.
             try:
                 os.killpg(process.pid, signal.SIGTERM)
@@ -205,13 +223,13 @@ def run_process(argv, cwd, log_path, event_path, emit, before_spawn=None, append
         signal.signal(signal.SIGTERM, previous)
 
 
-def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values=None):
+def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values=None, tool_names=()):
     """Run a manifest's ordered steps; PadForge emits the stage events itself."""
     event_path.parent.mkdir(parents=True, exist_ok=True)
     code, cancelled = 0, False
     for step, argv in zip(steps, argvs):
         stage = step["stage"]
-        env = backend_env((values or {}).get("jobs"))
+        env = backend_env((values or {}).get("jobs"), tool_names)
         if step.get("env"):
             env.update({key: expand([value], values or {})[0] for key, value in step["env"].items()})
         emit("backend_event", backend={"schema_version": 1, "event": "stage_started", "stage": stage})
@@ -225,9 +243,21 @@ def run_steps(steps, argvs, cwd, log_path, event_path, emit, before_each, values
     return code, cancelled
 
 
-def backend_env(jobs):
-    """Environment for backend processes: pass the job cap to `cmake --build`."""
-    env = dict(os.environ)
+def placeholder_values(args, repo, disc, work, output):
+    return {"repo": str(repo), "disc": str(disc) if disc else "", "work": str(work),
+            "output": str(output), "jobs": str(args.jobs), "app": app_path(args),
+            "python": sys.executable}
+
+
+def app_path(args):
+    app = getattr(args, "app", None)
+    return str(app.expanduser().resolve()) if app else ""
+
+
+def backend_env(jobs, tool_names=()):
+    """Environment for backend processes: PadForge's tools first on PATH, and the
+    job cap for `cmake --build`."""
+    env = tools.environment(tool_names, host_id()) if tool_names else dict(os.environ)
     if jobs:
         env.setdefault("CMAKE_BUILD_PARALLEL_LEVEL", str(jobs))
     return env
@@ -332,13 +362,12 @@ def execute(args, repo, disc):
             if "steps" in target:
                 code, cancelled = run_steps(target["steps"], argv, repo, attempt / "backend.log",
                                             events, emit, lambda: recheck("before-launch"),
-                                            values={"repo": str(repo), "disc": str(disc) if disc else "",
-                                                    "work": str(work), "output": str(output),
-                                                    "jobs": str(args.jobs)})
+                                            values=placeholder_values(args, repo, disc, work, output),
+                                            tool_names=target.get("tools", []))
             else:
                 code, cancelled = run_process(argv, repo, attempt / "backend.log", events, emit,
                                               before_spawn=lambda: recheck("before-launch"),
-                                              env=backend_env(args.jobs))
+                                              env=backend_env(args.jobs, target.get("tools", [])))
             recheck("after-exit")
             if code == 0 and not args.source_only:
                 if not output.is_file() or output.stat().st_size == 0:
@@ -488,6 +517,10 @@ def build_parser():
     doctor_parser.add_argument("game")
     doctor_parser.add_argument("--target", default="ios")
     doctor_parser.add_argument("--repo", type=Path)
+    tools_parser = commands.add_parser("tools", help="Download and check the tools a game's target needs")
+    tools_parser.add_argument("game")
+    tools_parser.add_argument("--target", default="android")
+    tools_parser.add_argument("--repo", type=Path)
     manifest_parser = commands.add_parser("check-manifest", help="Validate a padforge.json file")
     manifest_parser.add_argument("path", type=Path)
     audit_parser = commands.add_parser("audit", help="Run the release gate on files or folders")
@@ -502,6 +535,7 @@ def build_parser():
         sub.add_argument("--disc", type=Path,
                          help="Your own game image, for games that read it during the build")
         sub.add_argument("--target", default="ios")
+        sub.add_argument("--app", type=Path, help="The published app a game pack links against")
         sub.add_argument("--workspace-root", type=Path,
                          help="Ignored directory below backend build/ (default: build/padforge)")
         sub.add_argument("--jobs", type=int, choices=range(1, 9), default=2)
@@ -523,6 +557,15 @@ def main(argv=None):
         if args.action == "doctor":
             repo = args.repo.expanduser().resolve() if args.repo else None
             return doctor(args.game, args.target, repo)
+        if args.action == "tools":
+            repo = args.repo.expanduser().resolve() if args.repo else None
+            manifest, _source = manifest_for(args.game, repo)
+            target = manifest["targets"].get(args.target)
+            if target is None:
+                raise ValueError(f"{manifest['name']} has no {args.target} target")
+            tools.install(target.get("tools", []), host_id())
+            print(f"Tools ready in {tools.tools_root()}")
+            return 0
         if args.action == "check-manifest":
             path = args.path / "padforge.json" if args.path.is_dir() else args.path
             data = load_manifest(path)
@@ -542,8 +585,6 @@ def main(argv=None):
             return 0
         if state not in RUNNABLE_STATES:
             raise ValueError(f"{manifest['name']} {target_name} builds are {state} on {host_id()}")
-        if os.name != "posix":
-            raise ValueError("Builds need macOS or Linux for now (on Windows, use WSL2)")
         return execute(args, repo, disc)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"PadForge: {error}", file=sys.stderr)
