@@ -1,8 +1,9 @@
 """PadForge: build your own copy of a supported Pad game on your own computer.
 
-Commands: list, doctor, check-manifest, audit, plan, build. Game backends keep
-their own validation and caching; PadForge validates inputs, runs the backend,
-relays progress, and records and audits the result.
+Run with no command for the guided path. Other commands: make, list, doctor,
+tools, get, check-manifest, audit, plan, build. Game backends keep their own
+validation and caching; PadForge validates inputs, runs the backend, relays
+progress, and records and audits the result.
 """
 import argparse
 import contextlib
@@ -530,6 +531,64 @@ def doctor(game, target_name, repo=None, stream=None):
     return 1 if problems else 0
 
 
+PLATFORM_LABELS = {"android": "Android phone or tablet (APK)",
+                   "ios": "iPhone or iPad (IPA; needs this Mac)"}
+
+
+def dropped_path(text):
+    """A path typed, pasted or dragged into a terminal window."""
+    text = text.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        text = text[1:-1]
+    elif os.name != "nt":
+        text = re.sub(r"\\(.)", r"\1", text)
+    return Path(text).expanduser()
+
+
+def choose(title, options, ask, stream):
+    """options: [(value, label)]. One option is chosen without asking."""
+    if len(options) == 1:
+        print(f"{title}: {options[0][1]}", file=stream)
+        return options[0][0]
+    print(title, file=stream)
+    for number, (_value, label) in enumerate(options, 1):
+        print(f"  {number}. {label}", file=stream)
+    while True:
+        answer = ask("Number: ").strip()
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1][0]
+
+
+def start(ask=input, stream=None):
+    """The guided path for players: pick the game, then give your game file and a folder."""
+    stream = stream or sys.stdout
+    print(f"PadForge {__version__}: make your own copy of a game from your own game file.", file=stream)
+    on_mac = host_id().startswith("macos")
+    games = []
+    for game, entry in sorted(catalog().items()):
+        platforms = [name for name in entry.get("player_targets", []) if name != "ios" or on_mac]
+        if platforms:
+            games.append((game, entry.get("manifest", {}).get("name", game), platforms))
+    if not games:
+        raise ValueError("no game can be made on this computer yet")
+    game = choose("Game", [(game, name) for game, name, _ in games], ask, stream)
+    name, platforms = next((name, platforms) for id_, name, platforms in games if id_ == game)
+    target = choose("Make it for", [(p, PLATFORM_LABELS.get(p, p)) for p in platforms], ask, stream)
+    while True:
+        disc = dropped_path(ask(f"Drag your own {name} game file into this window, then press Enter: "))
+        if disc.is_file():
+            break
+        print(f"No file at {disc}", file=stream)
+    default = Path.home() / "Downloads"
+    default = default if default.is_dir() else Path.home()
+    answer = ask(f"Save it in which folder? Press Enter for {default}: ").strip()
+    out = dropped_path(answer) if answer else default
+    code = make(game, target, disc.resolve(), out.resolve())
+    if code == 0:
+        print(f"Next: {catalog()[game]['repo_url']}#get-{game}", file=stream)
+    return code
+
+
 def get_game(game, dest, ref=None):
     """Clone a catalogued game's source; its build bootstrap fetches the rest."""
     entry = catalog().get(game)
@@ -596,7 +655,8 @@ def build_parser():
     parser = argparse.ArgumentParser(prog="padforge", description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version=f"PadForge {__version__}")
-    commands = parser.add_subparsers(dest="action", required=True)
+    commands = parser.add_subparsers(dest="action")
+    commands.add_parser("start", help="Guided: pick a game, your game file and a folder (the default)")
     commands.add_parser("list", help="Show supported games and platforms")
     history_parser = commands.add_parser("history", help="Summarize recorded builds in a checkout")
     history_parser.add_argument("--repo", type=Path, required=True)
@@ -649,6 +709,8 @@ def build_parser():
 def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
+        if args.action in (None, "start"):
+            return start()
         if args.action == "list":
             return list_games()
         if args.action == "history":
@@ -699,5 +761,5 @@ def main(argv=None):
     except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
         print(f"PadForge: {error}", file=sys.stderr)
         return 1
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, EOFError):
         return 130

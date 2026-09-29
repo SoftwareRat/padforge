@@ -154,6 +154,9 @@ def catalog():
         revision = entry.get("reviewed_revision")
         if revision is not None and not re.fullmatch(r"[0-9a-f]{40}", str(revision)):
             raise ValueError(f"catalog/{path.name}: reviewed_revision must be a full commit or null")
+        targets = entry.get("player_targets", [])
+        if not isinstance(targets, list) or not set(targets) <= {"android", "ios", "macos"}:
+            raise ValueError(f"catalog/{path.name}: player_targets lists android, ios or macos")
         if entry.get("manifest") is not None:
             validate_manifest(entry["manifest"])
             if entry["manifest"]["id"] != entry["id"]:
