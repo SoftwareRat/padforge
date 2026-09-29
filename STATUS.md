@@ -116,6 +116,25 @@ Plan and owner decisions: Notion "PadForge release formula and pilot plan".
     iPhone gameplay and the recipe-only v0.2.0 release. Then a PadForge build
     check and release for BellPad, SpaghettiPad, StarshipPad, BallPad,
     BrawlerPad and MaskPad.
+- **Status (21:50).** The iPhone was dark because iPhone Mirroring was still
+  attached (closed at 20:28); it is now locked and needs the owner's unlock
+  before any gameplay screenshot. Until then:
+  - Built through PadForge and installed in place (saves kept): HarkinianPad
+    0.2.0 (main; loads oot.o2r, opening scene), GoldenPad 0.2.0 (#40 branch).
+  - Built through PadForge from main, recipe-only release staged (content
+    check PASS): HarkinianPad, BellPad, SpaghettiPad, StarshipPad, BallPad
+    1.1.0. BrawlerPad and MaskPad building. `recipe-release.sh` stages each
+    release the same way (recipe from the built commit, version.json check,
+    SHA256SUMS, audit, notes).
+  - D10 (N64 ports publish the recipe only). Release PRs in the same shape:
+    GoldenPad #40, BearBirdPad #16, BananaPad #10, AnnePad #7, DinoPad #7,
+    BarrelPad #15 (also fixes the build under stock bash 3.2). Build checks
+    queued after MaskPad.
+  - PadForge main: guided start handles games whose manifest lives in their
+    repository and takes a per-game help link (64 tests). A v0.1.1 release
+    with `player_targets` for each released game follows the first recipe
+    releases (v0.1.0 offers only KartPad and asks every game for a disc).
+  - Merged: MaskPad #10, VaultPad #8 (README).
 
 ## Overnight run 28–29 Sep (complete)
 
